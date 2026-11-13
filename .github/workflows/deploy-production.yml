@@ -1,0 +1,59 @@
+name: Production deployment (manual approval only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type DEPLOY to confirm publishing to the configured server
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: inputs.confirmation == 'DEPLOY'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Check source and production prerequisites
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          LIVE_ORIGIN: ${{ vars.PRODUCTION_ORIGIN }}
+        run: |
+          set -eu
+          test -n "$HOST" && test -n "$USER" && test -n "$SSH_KEY" && test -n "$KNOWN_HOSTS" && test -n "$LIVE_ORIGIN"
+          case "$LIVE_ORIGIN" in https://*) ;; *) echo "PRODUCTION_ORIGIN must be HTTPS" >&2; exit 1;; esac
+          node --test tests/*.test.cjs
+          python3 build.py
+          node scripts/verify-build.cjs
+          git diff --exit-code -- public/
+      - name: Install verified SSH host key and deploy code
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -eu
+          mkdir -m 700 -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          rsync -az --exclude='/.git/' --exclude='/.env' --exclude='/data/' --exclude='/backups/' --exclude='/outputs/' --exclude='/node_modules/' \
+            -e "ssh -o StrictHostKeyChecking=yes -o IdentitiesOnly=yes" ./ "$USER@$HOST:/opt/work-orders/"
+          ssh -o StrictHostKeyChecking=yes "$USER@$HOST" 'cd /opt/work-orders && docker compose config >/dev/null && docker compose up -d --build && docker compose ps'
+      - name: Verify the public site without changing user data
+        env:
+          LIVE_ORIGIN: ${{ vars.PRODUCTION_ORIGIN }}
+        run: node scripts/deployment-smoke.cjs "$LIVE_ORIGIN"
