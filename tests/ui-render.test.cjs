@@ -17,7 +17,7 @@ async function render(userId,route,options={}){
  return {html:app.innerHTML,errors};
 }
 test('owner central routes render with an actual server snapshot and the shared account page',async()=>{
- for(const route of ['home','orders','order/o1','newOrder','production','catalog','inventory','purchases','clients','employees','employee/emp1','branches','reviews','reports','activity','settings','sync','account']){
+ for(const route of ['home','orders','proofs','order/o1','newOrder','production','catalog','inventory','purchases','clients','employees','employee/emp1','branches','reviews','reports','activity','settings','sync','account']){
   const view=await render('owner',route);assert.deepEqual(view.errors,[],route);assert.ok(!view.html.includes('نحتاج إلى مراجعة هذه الصفحة'),route);assert.ok(view.html.includes('app-shell'),route);
  }
  const account=await render('owner','account');assert.ok(account.html.includes('central-password-form'));assert.ok(account.html.includes('owner@example.test'));
@@ -32,4 +32,19 @@ test('employee projection renders assigned tasks and own account without finance
 test('manager and buyer projections render their scoped operations; secondary tab has a persistent notice',async()=>{
  for(const [user,route]of [['manager1','orders'],['manager1','employees'],['buyer','purchases'],['buyer','inventory']]){const view=await render(user,route);assert.deepEqual(view.errors,[],user+route);assert.ok(view.html.includes('app-shell'));}
  const view=await render('owner','home',{readOnly:true});assert.ok(view.html.includes('هذا التبويب للقراءة فقط'));assert.ok(view.html.includes('data-action="central-reload"'));
+});
+
+test('customer approvals appear in manager operations while the employee is restricted',async()=>{
+ const dashboard=await render('owner','proofs');
+ assert.equal(dashboard.errors.length,0);
+ assert.ok(dashboard.html.includes('اعتمادات العملاء'));
+ assert.ok(dashboard.html.includes('أوامر العمل وموافقاتها'));
+ const detail=await render('owner','order/o1');
+ assert.ok(detail.html.includes('اعتماد التصميم من العميل'));
+ assert.ok(detail.html.includes('اعتماد المسؤول'));
+ const employee=await render('emp1','order/o1');
+ assert.ok(!employee.html.includes('إنشاء رابط العميل'));
+ assert.ok(!employee.html.includes('نسخ رابط العميل'));
+ const blocked=await render('emp1','proofs');
+ assert.ok(blocked.html.includes('هذه الصفحة خارج صلاحياتك'));
 });
