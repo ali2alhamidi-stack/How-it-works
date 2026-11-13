@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <title>Qodynex</title>
+  <defs>
+    <linearGradient id="surface" x1="60" y1="24" x2="430" y2="500" gradientUnits="userSpaceOnUse"><stop stop-color="#7948B9"/><stop offset="1" stop-color="#44216D"/></linearGradient>
+    <linearGradient id="check" x1="266" y1="210" x2="411" y2="184" gradientUnits="userSpaceOnUse"><stop stop-color="#8CF0DC"/><stop offset="1" stop-color="#36C6B8"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="148" fill="url(#surface)"/>
+  <rect x="12" y="12" width="488" height="488" rx="138" stroke="#FFFFFF" stroke-opacity=".12" stroke-width="2"/>
+  <path d="M348 266a105 105 0 1 0-90 105c24 0 46-8 63-21l59 59" stroke="white" stroke-width="40" stroke-linecap="round"/>
+  <path d="m274 242 47 48 76-100" stroke="url(#check)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
