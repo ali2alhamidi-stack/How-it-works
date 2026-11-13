@@ -88,3 +88,11 @@ The Node server can run a **verified daily snapshot scheduler** on its persisten
 The scheduler starts after service boot, writes a consistent SQLite backup, verifies `PRAGMA integrity_check`, stores a SHA256 sidecar, then keeps the latest seven snapshots. Files are accessible to the private container user only. Failure logs are visible in deployment logs; the app remains running.
 
 **Disaster recovery limitation:** These are on-volume backups in the *same Railway persistent volume* and are **not** off-site redundancy. A deleted or corrupted volume can affect the application and these snapshots. Before storing live customer records, configure encrypted off-site copies and test restoration to a separate database. No off-site uploads are configured or claimed here. Do not attach the same SQLite volume to multiple app replicas.
+
+## Initial Railway platform owner (temporary first boot)
+
+When no platform owner exists yet, supply the **two temporary service-only environment variables** `AWAMER_BOOTSTRAP_OWNER_EMAIL` and `AWAMER_BOOTSTRAP_OWNER_PASSWORD` before deployment. On boot, the existing `store.createPlatformOwner` function creates a real platform owner **only if no owner exists**. No public signup route is introduced.
+
+**After verifying login:** Immediately remove or blank both bootstrap variables from the hosting environment, and change the password in the account page. If the two variables do not match, startup fails clearly rather than creating an insecure partial account. On future boots with the variables removed the existing platform owner persists in the private SQLite database.
+
+Never commit credentials to GitHub, share the login in public marketing, or use the sample development passwords.
