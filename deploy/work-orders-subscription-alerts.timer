@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Work Orders subscription reminder scan
+
+[Timer]
+OnCalendar=*-*-* 09:00:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=work-orders-subscription-alerts.service
+
+[Install]
+WantedBy=timers.target

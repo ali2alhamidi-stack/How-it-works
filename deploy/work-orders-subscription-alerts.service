@@ -1,0 +1,9 @@
+[Unit]
+Description=Read-only Work Orders subscription expiry reminder scan
+After=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/work-orders/alerts.env
+ExecStart=/usr/bin/node /opt/work-orders/scripts/subscription-status.cjs
+NoNewPrivileges=true

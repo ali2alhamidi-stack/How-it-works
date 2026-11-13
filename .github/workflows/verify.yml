@@ -27,6 +27,8 @@ jobs:
           package-manager-cache: false
       - name: Test domain rules, HTTP server, permissions and synchronization
         run: node --test tests/*.test.cjs
+      - name: Validate backup schedule script
+        run: bash -n deploy/backup-schedule.sh
       - name: Build the central PWA and standalone demo
         run: python3 build.py
       - name: Verify assets, installation metadata and private API cache boundary

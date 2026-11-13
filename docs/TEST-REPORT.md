@@ -54,3 +54,7 @@
 - بناء وتشغيل Docker/Caddy، ملكية مجلدات الحاويات، DNS وإصدار شهادة TLS؛ جهزت القوالب وراجع YAML نصيا فقط.
 
 السكربت البصري القديم للنسخة الأولى محفوظ في `docs/archive/v1/ui_smoke.py` للتوثيق، ولا يمثل تحقق النسخة الحالية.
+
+## Launch readiness incremental checks (November 2026)
+
+Added automated tests for the deterministic guillotine cut planner, inventory-aware branch selection and salvage measurement, parallel writes on distinct accounts and tenants, a read-only public HTTPS smoke command, subscription expiry classification, and an explicit opt-in WhatsApp utility template adapter. This does not verify production hosting, on-device installation, a WhatsApp account, or paid subscriptions; see the separate deployment and device plans.

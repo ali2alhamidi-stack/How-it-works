@@ -4,7 +4,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 const Model=require('../src/model.js'),{redactState}=require('../server/redaction.cjs');
 const source=name=>fs.readFileSync(path.join(__dirname,'../src',name+'.js'),'utf8');
-const modules=['catalog','qr','calculators','model','inventory-engine','material-catalog','material-bindings','command-capture','connected-ui','inventory-ui'];
+const modules=['catalog','qr','calculators','nesting','nesting-ui','model','inventory-engine','material-catalog','material-bindings','command-capture','connected-ui','inventory-ui'];
 async function render(userId,route,options={}){
  const full=Model.seed(),user=full.users.find(u=>u.id===userId),account={id:'account-'+userId,userId,tenantId:'tenant-a',kind:'tenant',role:user.role,name:user.name,email:userId+'@example.test'},state=redactState(full,userId);
  const errors=[],listeners={},nodes=new Map();
@@ -17,7 +17,7 @@ async function render(userId,route,options={}){
  return {html:app.innerHTML,errors};
 }
 test('owner central routes render with an actual server snapshot and the shared account page',async()=>{
- for(const route of ['home','orders','proofs','order/o1','newOrder','production','catalog','inventory','purchases','clients','employees','employee/emp1','branches','reviews','reports','activity','settings','sync','account']){
+ for(const route of ['home','orders','proofs','nesting','order/o1','newOrder','production','catalog','inventory','purchases','clients','employees','employee/emp1','branches','reviews','reports','activity','settings','sync','account']){
   const view=await render('owner',route);assert.deepEqual(view.errors,[],route);assert.ok(!view.html.includes('نحتاج إلى مراجعة هذه الصفحة'),route);assert.ok(view.html.includes('app-shell'),route);
  }
  const account=await render('owner','account');assert.ok(account.html.includes('central-password-form'));assert.ok(account.html.includes('owner@example.test'));
@@ -56,3 +56,5 @@ test('owner sees direct operating costs and employee has no cost editor or amoun
  const b=await render('emp1','order/o1');assert.equal(b.errors.length,0);
  assert.ok(!b.html.includes('cost-form'));assert.ok(!b.html.includes('تكاليف التشغيل المباشرة'));
 });
+
+test('cut optimizer is available to authorized managers only',async()=>{const owner=await render('owner','nesting');assert.equal(owner.errors.length,0);assert.ok(owner.html.includes('cut-form'));const employee=await render('emp1','nesting');assert.ok(employee.html.includes('هذه الصفحة خارج صلاحياتك'));});
