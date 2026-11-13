@@ -5,7 +5,7 @@
     let enabled=false,depth=0,actions=[];
     const map={
       createOrder:(a,r)=>['order.create',{data:a[2],clientId:r.id}],updateOrder:a=>['order.update',{id:a[2],patch:a[3]}],assignTeam:a=>['order.team',{id:a[2],team:a[3]}],transitionOrder:a=>['order.transition',{id:a[2],status:a[3]}],
-      acceptAssignment:a=>['task.accept',{id:a[2]}],completeAssignment:a=>['task.complete',{id:a[2],minutes:a[3]}],addOrderNote:a=>['order.note',{id:a[2],text:a[3]}],addOrderAttachment:a=>['order.photo',{id:a[2],attachment:a[3]}],
+      acceptAssignment:a=>['task.accept',{id:a[2]}],completeAssignment:a=>['task.complete',{id:a[2],minutes:a[3]}],addOrderNote:a=>['order.note',{id:a[2],text:a[3]}],addOrderAttachment:a=>['order.photo',{id:a[2],attachment:a[3]}],addOrderCost:(a,r)=>['order.cost.add',{id:a[2],data:a[3],clientId:r.id}],reverseOrderCost:a=>['order.cost.reverse',{id:a[2],costId:a[3],reason:a[4]}],
       consumeMaterial:a=>['material.consume',{orderId:a[2],data:a[3]}],reserveRemnant:a=>['remnant.reserve',{id:a[2],orderId:a[3]}],releaseRemnant:a=>['remnant.release',{id:a[2]}],
       createPurchase:(a,r)=>['purchase.create',{data:a[2],clientId:r.id}],approvePurchase:a=>['purchase.approve',{id:a[2]}],rejectPurchase:a=>['purchase.reject',{id:a[2]}],receivePurchase:a=>['purchase.receive',{id:a[2]}]
     };
