@@ -7,7 +7,7 @@ test('verified automatic SQLite snapshot includes committed WAL rows',async()=>{
  const s=await B.snapshot({...v,logger:{info(){}}});
  assert.ok(fs.existsSync(s.output));assert.equal(fs.statSync(s.output).mode&0o777,0o600);
  const copy=new DatabaseSync(s.output,{readOnly:true});
- assert.deepEqual(copy.prepare('SELECT value FROM documents').get(),{value:'مستند محفوظ'});copy.close();
+ assert.equal(copy.prepare('SELECT value FROM documents').get().value,'مستند محفوظ');copy.close();
  const hash=crypto.createHash('sha256').update(fs.readFileSync(s.output)).digest('hex');
  assert.equal(s.sha256,hash);
  assert.ok(fs.readFileSync(s.output+'.sha256','utf8').includes(hash));
