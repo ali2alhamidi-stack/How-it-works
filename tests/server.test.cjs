@@ -34,3 +34,56 @@ test('proxy rate limits separate real forwarded clients only when explicitly tru
 test('login body size is bounded independently of photo-sized command payloads',async()=>{const f=await fixture();try{const r=await f.send('/api/login','POST',{email:'x'.repeat(20*1024),password:'invalid'});assert.equal(r.status,413);const good=await f.login('platform@example.test','Platform!2026Secure');assert.equal(good.account.kind,'platform');}finally{await f.close();}});
 test('a streaming authenticated command cannot commit after its session is revoked',async()=>{const f=await tenantFixture();try{const before=(await f.send('/api/state','GET',undefined,f.owner)).data,b=before.state.branches[0].id;const body=JSON.stringify({requestId:'inflight_revoked',baseRevision:before.revision,actions:[{type:'client.create',payload:{data:{name:'كتابة بعد إبطال الجلسة',branchId:b}}}]});let request;const started=new Promise(resolve=>f.server.once('request',resolve));const response=new Promise((resolve,reject)=>{request=http.request(new URL('/api/commands',f.base),{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','Content-Length':Buffer.byteLength(body),Cookie:f.owner.cookie,'X-CSRF-Token':f.owner.csrf}},res=>{let raw='';res.setEncoding('utf8');res.on('data',c=>raw+=c);res.on('end',()=>resolve({status:res.statusCode,data:JSON.parse(raw)}));});request.on('error',reject);const bytes=Buffer.from(body);request.write(bytes.subarray(0,bytes.length-1));});await started;const reset=await f.send('/api/platform/tenants/'+f.tenant.id+'/reset-owner','POST',{password:'RevokedOwner!2026Secure'},f.platform);assert.equal(reset.status,200);request.end(Buffer.from(body).subarray(Buffer.byteLength(body)-1));const attempted=await response;assert.equal(attempted.status,401,JSON.stringify(attempted.data));const fresh=await f.login('alpha@example.test','RevokedOwner!2026Secure'),after=(await f.send('/api/state','GET',undefined,fresh)).data;assert.equal(after.state.clients.length,0);assert.equal(after.revision,before.revision);}finally{await f.close();}});
 test('pending package purchases preserve approved conversion until receipt or rejection',async()=>{const f=await tenantFixture();try{const b=(await f.send('/api/state','GET',undefined,f.owner)).data.state.branches[0].id;let r=await command(f,[{type:'material.create',payload:{data:{id:'pending_package_material',branchId:b,name:'قطع عبوات',baseUnit:'piece',quantity:0,unitCost:0,purchaseUnits:[{name:'صندوق',factor:5}]}}},{type:'purchase.create',payload:{clientId:'pending_package_purchase',data:{branchId:b,title:'صندوقان معتمدان',materialId:'pending_package_material',quantity:2,unitCost:100,purchaseUnit:'صندوق'}}},{type:'purchase.approve',payload:{id:'pending_package_purchase'}}]);assert.equal(r.status,200,JSON.stringify(r.data));const before=r.data.revision;const changed=await command(f,[{type:'material.update',payload:{id:'pending_package_material',patch:{purchaseUnits:[{name:'صندوق',factor:10}]}}}]);assert.equal(changed.status,409,JSON.stringify(changed.data));assert.equal((await f.send('/api/state','GET',undefined,f.owner)).data.revision,before);r=await command(f,[{type:'material.update',payload:{id:'pending_package_material',patch:{name:'اسم أوضح دون تغيير التحويل'}}},{type:'purchase.receive',payload:{id:'pending_package_purchase'}}]);assert.equal(r.status,200,JSON.stringify(r.data));assert.equal(r.data.state.materials[0].quantity,10);assert.equal(r.data.state.materials[0].unitCost,20);assert.equal(r.data.state.purchases[0].receiptQuantityBase,10);const later=await command(f,[{type:'material.update',payload:{id:'pending_package_material',patch:{purchaseUnits:[{name:'صندوق',factor:10}]}}}]);assert.equal(later.status,200,JSON.stringify(later.data));assert.equal(later.data.state.purchases[0].receiptQuantityBase,10);}finally{await f.close();}});
+
+
+test('customer design approval: public preview, requested revision and required signoff before printing',async()=>{
+ const f=await tenantFixture();try{
+  const initial=(await f.send('/api/state','GET',undefined,f.owner)).data,b=initial.state.branches[0].id;
+  const created=await command(f,[{type:'client.create',payload:{data:{id:'proof_client',name:'اسم عميل خاص',branchId:b}}},{type:'order.create',payload:{clientId:'proof_order',data:{branchId:b,clientId:'proof_client',title:'لوحة 70x50',designDataUrl:'data:image/png;base64,ZmFrZS1hcnQ=',salePrice:987654,estimatedCost:123456,dueAt:'2099-12-01'}}},{type:'order.transition',payload:{id:'proof_order',status:'approval'}}]);
+  assert.equal(created.status,200,JSON.stringify(created.data));
+  assert.equal((await f.send('/api/orders/proof_order/proof','POST',{},{})).status,401);
+  assert.equal((await f.send('/api/orders/proof_order/proof','POST',{}, {cookie:f.owner.cookie})).status,403);
+  const opened=await f.send('/api/orders/proof_order/proof','POST',{},f.owner);
+  assert.equal(opened.status,201,JSON.stringify(opened.data));assert.match(opened.data.url,/\/proof\.html\?token=/);
+  const token=new URL(opened.data.url).searchParams.get('token');
+  const view=await f.send('/api/public/proofs/'+token);
+  assert.equal(view.status,200,JSON.stringify(view.data));
+  assert.deepEqual(Object.keys(view.data.order).sort(),['designDataUrl','height','number','quantity','revision','status','title','unit','width'].sort());
+  assert.ok(!JSON.stringify(view.data).includes('987654'));
+  assert.ok(!JSON.stringify(view.data).includes('اسم عميل خاص'));
+  const move=await command(f,[{type:'order.update',payload:{id:'proof_order',patch:{designApproved:true}}},{type:'order.transition',payload:{id:'proof_order',status:'queued'}}]);
+  assert.equal(move.status,409);assert.equal(move.data.error.code,'PROOF_NOT_APPROVED');
+  assert.equal((await f.send('/api/public/proofs/'+token,'POST',{revision:1,decision:'changes_requested',comment:''})).status,400);
+  const changed=await f.send('/api/public/proofs/'+token,'POST',{revision:1,decision:'changes_requested',comment:'يرجى تصحيح اللون',name:''});
+  assert.equal(changed.status,201,JSON.stringify(changed.data));
+  assert.equal((await f.send('/api/public/proofs/'+token,'POST',{revision:1,decision:'approved'})).status,409);
+  const renewed=await f.send('/api/orders/proof_order/proof','POST',{force:true},f.owner);
+  assert.equal(renewed.status,201);assert.equal(renewed.data.revision,2);
+  const latest=new URL(renewed.data.url).searchParams.get('token');
+  assert.notEqual(token,latest);assert.equal((await f.send('/api/public/proofs/'+token)).status,404);
+  assert.equal((await f.send('/api/public/proofs/'+latest,'POST',{revision:1,decision:'approved'})).status,409);
+  const accepted=await f.send('/api/public/proofs/'+latest,'POST',{revision:2,decision:'approved',comment:'المقاس مناسب'});
+  assert.equal(accepted.status,201);
+  const approved=await command(f,[{type:'order.update',payload:{id:'proof_order',patch:{designApproved:true}}},{type:'order.transition',payload:{id:'proof_order',status:'queued'}}]);
+  assert.equal(approved.status,200,JSON.stringify(approved.data));
+  const final=approved.data.state.orders.find(o=>o.id==='proof_order');
+  assert.equal(final.proofStatus,'approved');assert.equal(final.proofHistory.length,2);
+  assert.ok(approved.data.state.audit.some(a=>a.action==='customer_proof_decision'));
+  assert.equal((await f.send('/api/public/proofs/'+latest)).status,404);
+ }finally{await f.close();}
+});
+test('changing the uploaded artwork invalidates customer signoff and restores internal review',async()=>{
+ const f=await tenantFixture();try{
+  const b=(await f.send('/api/state','GET',undefined,f.owner)).data.state.branches[0].id;
+  let r=await command(f,[{type:'client.create',payload:{data:{id:'proof_client_2',name:'عميل',branchId:b}}},{type:'order.create',payload:{clientId:'proof_order_2',data:{branchId:b,clientId:'proof_client_2',title:'بنر جديد',dueAt:'2099-12-01',designDataUrl:'data:image/png;base64,ZmFrZQ=='}}},{type:'order.transition',payload:{id:'proof_order_2',status:'approval'}}]);
+  assert.equal(r.status,200,JSON.stringify(r.data));
+  const first=await f.send('/api/orders/proof_order_2/proof','POST',{},f.owner),oldToken=new URL(first.data.url).searchParams.get('token');
+  assert.equal((await f.send('/api/public/proofs/'+oldToken,'POST',{revision:1,decision:'approved'})).status,201);
+  r=await command(f,[{type:'order.update',payload:{id:'proof_order_2',patch:{designApproved:true,designDataUrl:'data:image/png;base64,bmV3YXJ0'}}}]);
+  assert.equal(r.status,200,JSON.stringify(r.data));const o=r.data.state.orders[0];
+  assert.equal(o.designApproved,false);assert.equal(o.proofStatus,'needs_resend');assert.equal(o.proofToken,'');
+  assert.equal((await f.send('/api/public/proofs/'+oldToken)).status,404);
+  assert.equal((await command(f,[{type:'order.transition',payload:{id:'proof_order_2',status:'queued'}}])).status,409);
+  const resent=await f.send('/api/orders/proof_order_2/proof','POST',{},f.owner);assert.equal(resent.status,201);assert.equal(resent.data.revision,2);
+ }finally{await f.close();}
+});

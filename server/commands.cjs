@@ -1,5 +1,6 @@
 'use strict';
 const M=require('../src/model.js');
+const Proof=require('./proofs.cjs');
 const S=require('./security.cjs');
 function inventory(){try{return require('../src/inventory-engine.js');}catch(e){if(e.code!=='MODULE_NOT_FOUND')throw e;return null;}}
 function permission(s,actor,p,b){if(!M.can(s,actor,p,b))S.error(403,'FORBIDDEN','لا تملك صلاحية هذه العملية في هذا الفرع');}
@@ -14,9 +15,9 @@ function numbered(list,prefix){const year=new Date().getFullYear(),base=prefix+'
 function validateState(s){M.validateState(s);const I=inventory();if(I?.validateExtensions)I.validateExtensions(s);return s;}
 function dispatch(s,actor,action,tenant){S.requireObject(action);const p=S.requireObject(action.payload||{}),I=inventory();switch(action.type){
  case 'order.create':{permission(s,actor,'manage_orders',p.data?.branchId);S.requireObject(p.data);financial(s,actor,p.data);if(p.clientId!==undefined){S.safeId(p.clientId);if(s.orders.some(o=>o.id===p.clientId))S.error(409,'DUPLICATE_ID','معرف الأمر مستخدم');}const number=numbered(s.orders,'WO'),o=M.createOrder(s,actor,p.data);o.number=number;o.reviewToken=S.random(32);return replaceLocalId(s,'orders',o,p.clientId);}
- case 'order.update':{const o=entity(s,'orders',p.id);financial(s,actor,{...p.patch,branchId:o.branchId},true);return M.updateOrder(s,actor,p.id,p.patch);}
+ case 'order.update':{const o=entity(s,'orders',p.id);Proof.assertUpdate(o,p.patch);financial(s,actor,{...p.patch,branchId:o.branchId},true);const before={...o},updated=M.updateOrder(s,actor,p.id,p.patch);Proof.invalidate(updated,before,p.patch);return updated;}
  case 'order.team':entity(s,'orders',p.id);return M.assignTeam(s,actor,p.id,p.team);
- case 'order.transition':{entity(s,'orders',p.id);const o=M.transitionOrder(s,actor,p.id,p.status);if(['cancelled','delivered'].includes(o.status)){if(I?.releaseForOrder)I.releaseForOrder(s,actor,o.id);else(s.stockReservations||[]).filter(r=>r.orderId===o.id&&r.status==='reserved').forEach(r=>{r.status='released';r.releasedAt=new Date().toISOString();});}return o;}
+ case 'order.transition':{const current=entity(s,'orders',p.id);if(['queued','production'].includes(p.status)&&current.proofRequired&&current.proofStatus!=='approved')S.error(409,'PROOF_NOT_APPROVED','يلزم تسجيل موافقة العميل على أحدث إصدار للتصميم قبل بدء الإنتاج');const o=M.transitionOrder(s,actor,p.id,p.status);if(['cancelled','delivered'].includes(o.status)){if(I?.releaseForOrder)I.releaseForOrder(s,actor,o.id);else(s.stockReservations||[]).filter(r=>r.orderId===o.id&&r.status==='reserved').forEach(r=>{r.status='released';r.releasedAt=new Date().toISOString();});}return o;}
  case 'task.accept':entity(s,'orders',p.id);return M.acceptAssignment(s,actor,p.id);
  case 'task.complete':entity(s,'orders',p.id);return M.completeAssignment(s,actor,p.id,p.minutes);
  case 'order.note':entity(s,'orders',p.id);return M.addOrderNote(s,actor,p.id,p.text);
