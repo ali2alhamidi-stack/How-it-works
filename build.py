@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / 'public'
 PUBLIC.mkdir(exist_ok=True)
 (PUBLIC / 'assets').mkdir(exist_ok=True)
-SOURCES = ['catalog','qr','calculators','model','inventory-engine','material-catalog','material-bindings','sync-core','command-capture','tab-lock','transport','connected-ui','platform-ui','inventory-ui','app']
+SOURCES = ['catalog','qr','calculators','nesting','nesting-ui','model','inventory-engine','material-catalog','material-bindings','sync-core','command-capture','tab-lock','transport','connected-ui','platform-ui','inventory-ui','app']
 b64 = lambda name: base64.b64encode((ROOT / name).read_bytes()).decode()
 digest = lambda data: hashlib.sha256(data.encode()).hexdigest()[:16]
 def font_css(embedded):

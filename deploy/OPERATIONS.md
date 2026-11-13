@@ -57,3 +57,20 @@ For an update, take and verify a backup, retrieve the reviewed source version, r
 - Caddy Compose setup and persistent `/data` and `/config`: https://caddyserver.com/docs/running .
 - Caddy automatic HTTPS requirements: https://caddyserver.com/docs/automatic-https .
 - Caddy reverse proxy header handling: https://caddyserver.com/docs/caddyfile/directives/reverse_proxy .
+
+## Scheduled backups on a production host
+
+The repository also includes a host-side backup runner, which is **not automatically activated** by checking out the repository. It uses the existing verified SQLite backup API and copies each resulting snapshot out of the container to a private host path.
+
+1. Deploy the app and confirm the SQLite volume persists after restart.
+2. Make a private directory on a dedicated backup filesystem; ideally mount a separate off-host storage destination. A directory on the same VPS is not disaster recovery.
+3. Store `APP_DIR=/opt/work-orders`, `BACKUP_DIR=/path/to/private/backup/drive`, and `RETENTION_DAYS=30` in `/etc/work-orders/backup.env`; protect the file and directory from public access.
+4. Set `deploy/backup-schedule.sh` executable and install the systemd service and timer files into `/etc/systemd/system/`; adjust their paths if your deployment lives elsewhere.
+5. Run `sudo systemctl daemon-reload`, `sudo systemctl enable --now work-orders-backup.timer`, then run `sudo systemctl start work-orders-backup.service` and inspect journal logs. Verify the copied SQLite file on an **isolated restoration environment** before accepting it.
+6. The job runs daily and prunes named backup files only after a successful new copy, with a seven-day minimum retention. Keep off-site copies and separate encryption at rest.
+
+The separate subscription scanner can be enabled with `deploy/work-orders-subscription-alerts.service` and `deploy/work-orders-subscription-alerts.timer` after setting `DB_PATH=/data/work-orders.sqlite` **only when the scanner runs inside the container**; when running on the host use a private, readable SQLite database snapshot instead. It prints a private operator report and does not send WhatsApp automatically or change subscription dates.
+
+### Public HTTPS pre-launch check
+
+From an external machine, run `node scripts/deployment-smoke.cjs https://your-order-domain`. It checks RTL app, manifest, two customer proof pages and that unauthenticated API state/session calls return 401. It cannot test end-to-end login or restore data.
