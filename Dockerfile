@@ -16,12 +16,16 @@ ENV NODE_ENV=production \
     PUBLIC_DIR=/app/public
 WORKDIR /app
 RUN node -e "const [major,minor]=process.versions.node.split('.').map(Number); if(major!==24||minor<22)throw new Error('Node 24.22+ required'); require('node:sqlite')" \
+    && apt-get update && apt-get install -y --no-install-recommends gosu \
+    && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /data && chown node:node /data && chmod 700 /data
 COPY --chown=node:node package.json ./
 COPY --chown=node:node server ./server
 COPY --chown=node:node src/model.js src/catalog.js src/inventory-engine.js ./src/
 COPY --chown=node:node scripts/create-owner.cjs scripts/backup.cjs ./scripts/
 COPY --from=web-build --chown=node:node /build/public ./public
-USER node
+COPY --chmod=755 deploy/docker-entrypoint.sh /usr/local/bin/awamer-entrypoint
+USER root
 EXPOSE 3000
+ENTRYPOINT ["/usr/local/bin/awamer-entrypoint"]
 CMD ["node", "server/main.cjs"]
