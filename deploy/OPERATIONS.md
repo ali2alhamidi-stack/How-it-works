@@ -74,3 +74,17 @@ The separate subscription scanner can be enabled with `deploy/work-orders-subscr
 ### Public HTTPS pre-launch check
 
 From an external machine, run `node scripts/deployment-smoke.cjs https://your-order-domain`. It checks RTL app, manifest, two customer proof pages and that unauthenticated API state/session calls return 401. It cannot test end-to-end login or restore data.
+
+
+## In-container daily SQLite snapshots
+
+The Node server can run a **verified daily snapshot scheduler** on its persistent /data volume with environment variables:
+
+- `AUTO_BACKUP_ENABLED=true`
+- `AUTO_BACKUP_DIR=/data/backups`
+- `AUTO_BACKUP_INTERVAL_HOURS=24`
+- `AUTO_BACKUP_KEEP=7`
+
+The scheduler starts after service boot, writes a consistent SQLite backup, verifies `PRAGMA integrity_check`, stores a SHA256 sidecar, then keeps the latest seven snapshots. Files are accessible to the private container user only. Failure logs are visible in deployment logs; the app remains running.
+
+**Disaster recovery limitation:** These are on-volume backups in the *same Railway persistent volume* and are **not** off-site redundancy. A deleted or corrupted volume can affect the application and these snapshots. Before storing live customer records, configure encrypted off-site copies and test restoration to a separate database. No off-site uploads are configured or claimed here. Do not attach the same SQLite volume to multiple app replicas.
