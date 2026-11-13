@@ -1,7 +1,7 @@
 /* Only the application shell enters Cache Storage, never API or customer data. */
 'use strict';
-const CACHE='wo-shell-6e7d3a211f205417';
-const FILES=["/", "/index.html", "/app-61e6a8d2f7bd9d09.js", "/styles-7ff8e8a510399e82.css", "/manifest.webmanifest", "/assets/Arabic-Bold.ttf", "/assets/Arabic-Regular.ttf", "/assets/app-icon-192.png", "/assets/app-icon-512.png", "/assets/app-mark.svg", "/assets/brand.jpg"];
+const CACHE='wo-shell-5f57ab30099192ff';
+const FILES=["/", "/index.html", "/app-20985dfe5c2fd359.js", "/styles-7ff8e8a510399e82.css", "/manifest.webmanifest", "/assets/Arabic-Bold.ttf", "/assets/Arabic-Regular.ttf", "/assets/app-icon-192.png", "/assets/app-icon-512.png", "/assets/app-mark.svg", "/assets/brand.jpg"];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES.map(url=>new Request(url,{cache:'reload'})))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('wo-shell-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
