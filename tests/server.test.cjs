@@ -87,3 +87,31 @@ test('changing the uploaded artwork invalidates customer signoff and restores in
   const resent=await f.send('/api/orders/proof_order_2/proof','POST',{},f.owner);assert.equal(resent.status,201);assert.equal(resent.data.revision,2);
  }finally{await f.close();}
 });
+
+
+test('HTTP direct-cost ledger is atomic and idempotent; restricted staff see no cost details',async()=>{
+ const f=await tenantFixture();try{
+  const b=(await f.send('/api/state','GET',undefined,f.owner)).data.state.branches[0].id;
+  let r=await command(f,[{type:'client.create',payload:{data:{id:'cost_client',name:'مركز طباعة',branchId:b}}},{type:'order.create',payload:{clientId:'cost_order',data:{branchId:b,clientId:'cost_client',title:'حروف مضيئة',dueAt:'2099-12-01',salePrice:500,estimatedCost:150}}}]);
+  assert.equal(r.status,200,JSON.stringify(r.data));
+  const base=r.data.revision;
+  const action={type:'order.cost.add',payload:{id:'cost_order',clientId:'cost_entry_1',data:{type:'machine',amount:70,note:'تكلفة تشغيل ماكينة'}}};
+  r=await command(f,[action],f.owner,base,'cost_idem_request');
+  assert.equal(r.status,200,JSON.stringify(r.data));assert.equal(r.data.state.orders[0].actualCost,70);
+  assert.equal(r.data.state.orders[0].costItems[0].id,'cost_entry_1');
+  const again=await command(f,[action],f.owner,base,'cost_idem_request');
+  assert.equal(again.status,200);assert.equal(again.data.state.orders[0].costItems.length,1);
+  const reversed=await command(f,[{type:'order.cost.reverse',payload:{id:'cost_order',costId:'cost_entry_1',reason:'تسجيل خاطئ'}}]);
+  assert.equal(reversed.status,200,JSON.stringify(reversed.data));assert.equal(reversed.data.state.orders[0].actualCost,0);
+  assert.ok(reversed.data.state.orders[0].costItems[0].reversedAt);
+  const repeated=await command(f,[{type:'order.cost.reverse',payload:{id:'cost_order',costId:'cost_entry_1',reason:'تكرار'}}]);
+  assert.equal(repeated.status,400);
+  const staff=await f.send('/api/users','POST',{user:{name:'موظف الإنتاج',role:'employee',branchIds:[b]},email:'private-cost@example.test',password:'WorkCostPass!2026'},f.owner);
+  assert.equal(staff.status,201);
+  const staffAuth=await f.login('private-cost@example.test','WorkCostPass!2026');
+  const denied=await command(f,[{type:'order.cost.add',payload:{id:'cost_order',data:{type:'labor',amount:999,note:'لا تصرح'}}}],staffAuth);
+  assert.equal(denied.status,403);
+  const projected=await f.send('/api/state','GET',undefined,staffAuth);
+  assert.equal(projected.status,200);assert.ok(!JSON.stringify(projected.data).includes('تكلفة تشغيل ماكينة'));
+ }finally{await f.close();}
+});

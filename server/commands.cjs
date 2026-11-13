@@ -22,6 +22,8 @@ function dispatch(s,actor,action,tenant){S.requireObject(action);const p=S.requi
  case 'task.complete':entity(s,'orders',p.id);return M.completeAssignment(s,actor,p.id,p.minutes);
  case 'order.note':entity(s,'orders',p.id);return M.addOrderNote(s,actor,p.id,p.text);
  case 'order.photo':entity(s,'orders',p.id);return M.addOrderAttachment(s,actor,p.id,p.attachment);
+ case 'order.cost.add':{const o=entity(s,'orders',p.id),item=M.addOrderCost(s,actor,p.id,p.data);if(p.clientId!==undefined){S.safeId(p.clientId,'معرف تكلفة التشغيل');if(o.costItems.some(x=>x!==item&&x.id===p.clientId))S.error(409,'DUPLICATE_ID','معرف التكلفة مستخدم');item.id=p.clientId;}return item;}
+ case 'order.cost.reverse':entity(s,'orders',p.id);return M.reverseOrderCost(s,actor,p.id,p.costId,p.reason);
  case 'material.consume':entity(s,'orders',p.orderId);return I?.issue?I.issue(s,actor,p.orderId,p.data):M.consumeMaterial(s,actor,p.orderId,p.data);
  case 'remnant.reserve':entity(s,'remnants',p.id);entity(s,'orders',p.orderId);return M.reserveRemnant(s,actor,p.id,p.orderId);
  case 'remnant.release':entity(s,'remnants',p.id);return M.releaseRemnant(s,actor,p.id);

@@ -48,3 +48,11 @@ test('customer approvals appear in manager operations while the employee is rest
  const blocked=await render('emp1','proofs');
  assert.ok(blocked.html.includes('هذه الصفحة خارج صلاحياتك'));
 });
+
+
+test('owner sees direct operating costs and employee has no cost editor or amounts',async()=>{
+ const a=await render('owner','order/o1');assert.equal(a.errors.length,0);assert.ok(a.html.includes('تكاليف التشغيل المباشرة'));
+ assert.ok(a.html.includes('cost-form'));
+ const b=await render('emp1','order/o1');assert.equal(b.errors.length,0);
+ assert.ok(!b.html.includes('cost-form'));assert.ok(!b.html.includes('تكاليف التشغيل المباشرة'));
+});

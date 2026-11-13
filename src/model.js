@@ -59,7 +59,7 @@
   };
   const createOrder = (s,id,p) => {
     if(!obj(p))fail('بيانات الأمر غير صالحة');requirePermission(s,id,'manage_orders',p.branchId);
-    const o={id:uid('order'),number:`WO-${new Date().getFullYear()}-${String(s.orders.length+1).padStart(4,'0')}`,branchId:p.branchId,clientId:p.clientId,title:p.title,category:p.category||'projects',description:p.description||'',quantity:p.quantity??1,width:p.width??0,height:p.height??0,unit:p.unit||'piece',materialId:p.materialId||'',salePrice:p.salePrice??0,estimatedCost:p.estimatedCost??0,actualCost:0,dueAt:p.dueAt||now().slice(0,10),status:'draft',priority:p.priority||'normal',designApproved:false,designDataUrl:p.designDataUrl||'',assignees:[],notes:[],attachments:[],consumptions:[],createdAt:now(),deliveredAt:null,reviewToken:uid('review'),qualityPassed:false};
+    const o={id:uid('order'),number:`WO-${new Date().getFullYear()}-${String(s.orders.length+1).padStart(4,'0')}`,branchId:p.branchId,clientId:p.clientId,title:p.title,category:p.category||'projects',description:p.description||'',quantity:p.quantity??1,width:p.width??0,height:p.height??0,unit:p.unit||'piece',materialId:p.materialId||'',salePrice:p.salePrice??0,estimatedCost:p.estimatedCost??0,actualCost:0,dueAt:p.dueAt||now().slice(0,10),status:'draft',priority:p.priority||'normal',designApproved:false,designDataUrl:p.designDataUrl||'',assignees:[],notes:[],attachments:[],consumptions:[],costItems:[],createdAt:now(),deliveredAt:null,reviewToken:uid('review'),qualityPassed:false};
     orderValues(s,o);s.orders.push(o);audit(s,id,o.branchId,'create_order',o.id,'إنشاء أمر عمل');return o;
   };
   const updateOrder = (s,id,orderId,patch) => {
@@ -96,6 +96,31 @@
   const canDocument = (s,id,o) => {const u=user(s,id);branch(s,o.branchId);if(!can(s,id,'manage_orders',o.branchId)&&!(u.branchIds.includes(o.branchId)&&o.assignees.some(a=>a.userId===id)))fail('يمكن إضافة التوثيق لأوامرك المسندة في فرعك فقط');if(o.status==='cancelled')fail('الأمر الملغى مغلق للتوثيق');};
   const addOrderNote = (s,id,orderId,value) => {const o=get(s.orders,orderId,'الأمر');canDocument(s,id,o);const content=text(value,'الملاحظة',5000);const n={id:uid('note'),userId:id,text:content,at:now()};o.notes.push(n);audit(s,id,o.branchId,'add_order_note',o.id,'إضافة ملاحظة متابعة');return n;};
   const addOrderAttachment = (s,id,orderId,p) => {const o=get(s.orders,orderId,'الأمر');canDocument(s,id,o);if(!obj(p))fail('بيانات الصورة غير صالحة');text(p.name,'اسم الصورة',250);text(p.dataUrl,'الصورة',6000000);if(!/^data:image\/(png|jpeg|webp);base64,[a-z\d+/=\s]+$/i.test(p.dataUrl))fail('الصورة يجب أن تكون PNG أو JPEG أو WebP محلية');const a={id:uid('photo'),name:p.name,dataUrl:p.dataUrl,at:now()};o.attachments.push(a);audit(s,id,o.branchId,'add_order_attachment',o.id,'إضافة صورة التنفيذ');return a;};
+  function addOrderCost(s,id,orderId,p){
+ const o=get(s.orders,orderId,'الأمر');requirePermission(s,id,'manage_orders',o.branchId);requirePermission(s,id,'view_financials',o.branchId);
+ if(!obj(p))fail('بيانات التكلفة غير صالحة');
+ oneOf(p.type,['labor','machine','finishing','outsourcing','installation','delivery','other'],'نوع التكلفة');
+ number(p.amount,'قيمة التكلفة',.01,1e9);const amount=round(p.amount);
+ if(amount<.01)fail('المبلغ أقل من أصغر وحدة مسموحة');
+ const note=text(p.note,'سبب التكلفة',500);
+ if(!Array.isArray(o.costItems))o.costItems=[];
+ if(o.costItems.length>=200)fail('تم بلوغ الحد المسموح لتفاصيل تكاليف هذا الأمر');
+ const item={id:uid('cost'),type:p.type,amount,note,recordedBy:id,at:now(),reversedAt:null,reversedBy:null,reverseReason:''};
+ o.costItems.push(item);o.actualCost=round(o.actualCost+amount);
+ audit(s,id,o.branchId,'add_order_cost',o.id,'إضافة تكلفة تشغيل موثقة');
+ return item;
+}
+  function reverseOrderCost(s,id,orderId,costId,reason){
+ const o=get(s.orders,orderId,'الأمر');requirePermission(s,id,'manage_orders',o.branchId);requirePermission(s,id,'view_financials',o.branchId);
+ const item=(o.costItems||[]).find(c=>c.id===costId);if(!item)fail('بند التكلفة غير موجود');
+ if(item.reversedAt)fail('تم عكس هذا البند مسبقا');
+ const note=text(reason,'سبب تصحيح التكلفة',500);
+ if(o.actualCost+0.001<item.amount)fail('إجمالي التكلفة أقل من المبلغ المطلوب عكسه');
+ item.reversedAt=now();item.reversedBy=id;item.reverseReason=note;
+ o.actualCost=round(o.actualCost-item.amount);
+ audit(s,id,o.branchId,'reverse_order_cost',o.id,'تصحيح تكلفة تشغيل مع حفظ السبب');
+ return item;
+}
   const consumeMaterial = (s,id,orderId,p) => {const o=get(s.orders,orderId,'الأمر');editable(o);if(!can(s,id,'manage_inventory',o.branchId)&&!ownProduction(s,id,o))fail('لا تملك صلاحية صرف خامات هذا الأمر');if(!['production','quality'].includes(o.status))fail('صرف الخامات متاح أثناء الإنتاج أو فحص الجودة');if(!obj(p))fail('بيانات الصرف غير صالحة');const m=get(s.materials,p.materialId,'الخامة');if(m.branchId!==o.branchId)fail('الخامة ليست في فرع الأمر');number(p.quantity,'كمية الصرف',.000001);number(p.wasteQuantity??0,'كمية الهدر',0,p.quantity);text(p.note??'','ملاحظة الصرف',2000,true);if(p.quantity>m.quantity)fail('الرصيد المتاح لا يكفي للصرف');const cost=round(p.quantity*m.unitCost);const c={id:uid('issue'),materialId:m.id,quantity:p.quantity,wasteQuantity:p.wasteQuantity??0,unitCost:m.unitCost,cost,note:p.note||'',userId:id,at:now()};m.quantity=round(m.quantity-p.quantity,6);o.consumptions.push(c);o.actualCost=round(o.actualCost+cost);audit(s,id,o.branchId,'consume_material',o.id,`صرف ${p.quantity} ${m.unit}، الهدر منها ${c.wasteQuantity}`);return c;};
   const createPurchase = (s,id,p) => {if(!obj(p))fail('بيانات طلب الشراء غير صالحة');requirePermission(s,id,'request_purchase',p.branchId);const m=get(s.materials,p.materialId,'الخامة');if(m.branchId!==p.branchId)fail('الخامة ليست في فرع الطلب');text(p.title,'عنوان الشراء',200);number(p.quantity,'الكمية',.000001);number(p.unitCost,'تكلفة الوحدة');text(p.note??'','الملاحظة',2000,true);const purchase={id:uid('purchase'),number:`PO-${String(s.purchases.length+1).padStart(4,'0')}`,branchId:p.branchId,title:p.title,materialId:p.materialId,quantity:p.quantity,unitCost:p.unitCost,status:'requested',requestedBy:id,approvedBy:null,receivedAt:null,note:p.note||'',createdAt:now()};s.purchases.push(purchase);audit(s,id,p.branchId,'create_purchase',purchase.id,'طلب شراء خامات');return purchase;};
   const purchaseDecision = (s,id,purchaseId,status) => {const p=get(s.purchases,purchaseId,'طلب الشراء');requirePermission(s,id,'approve_purchase',p.branchId);if(p.status!=='requested')fail('يمكن اتخاذ قرار لطلب الشراء المعلق فقط');p.status=status;p.approvedBy=id;audit(s,id,p.branchId,status==='approved'?'approve_purchase':'reject_purchase',p.id,'تحديث قرار طلب الشراء');return p;};
@@ -160,7 +185,21 @@
       ref('branches',o.branchId,'فرع الأمر');ref('clients',o.clientId,'عميل الأمر');orderValues(s,o,true);oneOf(o.status,statuses,'مرحلة الأمر');text(o.number,'رقم الأمر');if(orderNumbers.has(o.number))fail('رقم أمر مكرر');orderNumbers.add(o.number);number(o.actualCost,'التكلفة الفعلية');date(o.createdAt,'تاريخ إنشاء الأمر');date(o.deliveredAt,'تاريخ تسليم الأمر',true);if(o.status==='delivered'&&!o.deliveredAt)fail('أمر مسلم بدون تاريخ تسليم');if(o.status!=='delivered'&&o.deliveredAt)fail('تاريخ تسليم لأمر غير مسلم');text(o.reviewToken,'رمز التقييم');if(!/^[a-z\d_-]+$/i.test(o.reviewToken))fail('رمز التقييم غير صالح');if(tokens.has(o.reviewToken))fail('رمز تقييم مكرر');tokens.add(o.reviewToken);
       if(!Array.isArray(o.assignees)||!Array.isArray(o.consumptions))fail('فريق الأمر أو الصرف غير صالح');
       if(o.assignees.length){teamValue(s,o.branchId,o.assignees,true,o.dueAt);o.assignees.forEach(a=>{if(a.dueAt===undefined)deadlineDefaults.push({assignment:a,dueAt:o.dueAt});number(a.actualMinutes,'دقائق العمل');bool(a.done,'حالة المهمة');date(a.completedAt,'تاريخ إنجاز المهمة',true);if(a.acceptedAt===undefined)acceptanceDefaults.push({assignment:a,acceptedAt:a.done?a.completedAt:null});else date(a.acceptedAt,'تاريخ استلام المهمة',true);if(a.done!==!!a.completedAt)fail('تاريخ إنجاز المهمة لا يتطابق مع حالتها');});}
-      const issueIds=new Set();o.consumptions.forEach(c=>{text(c.id,'معرف الصرف');if(issueIds.has(c.id))fail('صرف مكرر');issueIds.add(c.id);const m=ref('materials',c.materialId,'خامة الصرف');if(m.branchId!==o.branchId)fail('خامة صرف خارج فرع الأمر');ref('users',c.userId,'موظف الصرف');number(c.quantity,'كمية الصرف',.000001);number(c.wasteQuantity,'كمية الهدر',0,c.quantity);number(c.unitCost,'تكلفة وحدة الصرف');number(c.cost,'تكلفة الصرف');if(Math.abs(c.cost-round(c.quantity*c.unitCost))>.02)fail('تكلفة الصرف غير متطابقة');text(c.note,'ملاحظة الصرف',2000,true);date(c.at,'وقت الصرف');});if(o.consumptions.reduce((v,c)=>v+c.cost,0)>o.actualCost+.02)fail('تكلفة الأمر أقل من الخامات المصروفة');
+      const issueIds=new Set();o.consumptions.forEach(c=>{text(c.id,'معرف الصرف');if(issueIds.has(c.id))fail('صرف مكرر');issueIds.add(c.id);const m=ref('materials',c.materialId,'خامة الصرف');if(m.branchId!==o.branchId)fail('خامة صرف خارج فرع الأمر');ref('users',c.userId,'موظف الصرف');number(c.quantity,'كمية الصرف',.000001);number(c.wasteQuantity,'كمية الهدر',0,c.quantity);number(c.unitCost,'تكلفة وحدة الصرف');number(c.cost,'تكلفة الصرف');if(Math.abs(c.cost-round(c.quantity*c.unitCost))>.02)fail('تكلفة الصرف غير متطابقة');text(c.note,'ملاحظة الصرف',2000,true);date(c.at,'وقت الصرف');});if(o.costItems!==undefined){
+        if(!Array.isArray(o.costItems)||o.costItems.length>200)fail('تفاصيل تكاليف التشغيل غير صالحة');
+        const unique=new Set();for(const c of o.costItems){
+         if(!obj(c))fail('بند تكلفة تشغيل غير صالح');text(c.id,'معرف التكلفة',200);
+         if(unique.has(c.id))fail('بند تكلفة تشغيل مكرر');unique.add(c.id);
+         oneOf(c.type,['labor','machine','finishing','outsourcing','installation','delivery','other'],'نوع تكلفة التشغيل');
+         number(c.amount,'مبلغ تكلفة التشغيل',.01,1e9);text(c.note,'وصف تكلفة التشغيل',500);
+         ref('users',c.recordedBy,'مسجل التكلفة');date(c.at,'وقت تسجيل التكلفة');
+         date(c.reversedAt,'وقت عكس التكلفة',true);
+         ref('users',c.reversedBy,'مصَحح التكلفة',true);text(c.reverseReason||'','سبب عكس التكلفة',500,true);
+         if(!!c.reversedAt!==!!c.reversedBy||!!c.reversedAt!==!!c.reverseReason)fail('سجل تصحيح التكلفة غير متطابق');
+        }
+       }
+       const activeCost=(o.costItems||[]).filter(c=>!c.reversedAt).reduce((sum,c)=>sum+c.amount,0);
+       if(o.consumptions.reduce((v,c)=>v+c.cost,0)+activeCost>o.actualCost+.02)fail('تكلفة الأمر أقل من إجمالي المصروف وتكاليف التشغيل');
     });
     const reserved=new Set();s.remnants.forEach(r=>{ref('branches',r.branchId,'فرع الباقي');const m=ref('materials',r.materialId,'خامة الباقي');if(m.branchId!==r.branchId)fail('فرع الباقي لا يطابق خامته');text(r.name,'اسم الباقي');text(r.location,'موقع الباقي',300,true);text(r.color,'لون الباقي',100,true);number(r.width,'عرض الباقي',.000001);number(r.height,'ارتفاع الباقي',.000001);number(r.thickness,'سماكة الباقي');oneOf(r.status,['available','reserved','used'],'حالة الباقي');date(r.createdAt,'تاريخ الباقي');ref('users',r.confirmedBy,'موظف تأكيد الباقي');const source=ref('orders',r.sourceOrderId,'أمر مصدر الباقي',true);if(source&&source.branchId!==r.branchId)fail('مصدر الباقي خارج الفرع');const o=ref('orders',r.reservedFor,'الأمر المحجوز',true);if(r.status==='available'&&o||r.status==='reserved'&&!o)fail('بيانات حجز الباقي غير متطابقة');if(o&&(o.branchId!==r.branchId||o.materialId!==r.materialId))fail('حجز باقي خارج فرع أو خامة الأمر');if(r.status==='reserved'){if(['cancelled','delivered'].includes(o.status)||reserved.has(o.id))fail('حجز باقي مكرر أو لأمر مغلق');reserved.add(o.id);if(!remnantFits(o,r))fail('مقاس الباقي المحجوز لا يناسب الأمر');}});
     const poNumbers=new Set();s.purchases.forEach(p=>{ref('branches',p.branchId,'فرع الشراء');const m=ref('materials',p.materialId,'خامة الشراء');if(m.branchId!==p.branchId)fail('خامة الشراء خارج الفرع');text(p.number,'رقم الشراء');if(poNumbers.has(p.number))fail('رقم شراء مكرر');poNumbers.add(p.number);text(p.title,'عنوان الشراء');number(p.quantity,'كمية الشراء',.000001);number(p.unitCost,'تكلفة الشراء');oneOf(p.status,['requested','approved','received','rejected'],'حالة الشراء');ref('users',p.requestedBy,'طالب الشراء');ref('users',p.approvedBy,'معتمد الشراء',true);date(p.createdAt,'تاريخ الشراء');date(p.receivedAt,'تاريخ الاستلام',true);text(p.note,'ملاحظة الشراء',2000,true);if((p.status==='received')!==!!p.receivedAt)fail('حالة استلام الشراء لا تتطابق مع التاريخ');if(['approved','received','rejected'].includes(p.status)&&!p.approvedBy)fail('قرار شراء بدون مستخدم معتمد');});
@@ -169,5 +208,5 @@
     deadlineDefaults.forEach(({assignment,dueAt})=>assignment.dueAt=dueAt);acceptanceDefaults.forEach(({assignment,acceptedAt})=>assignment.acceptedAt=acceptedAt);
     return s;
   };
-  return {seed,uid,can,visibleOrders,createOrder,updateOrder,transitionOrder,assignTeam,acceptAssignment,completeAssignment,reserveRemnant,releaseRemnant,addOrderNote,addOrderAttachment,consumeMaterial,createPurchase,approvePurchase,rejectPurchase,receivePurchase,submitReview,employeePerformance,totals,validateState};
+  return {seed,uid,can,visibleOrders,createOrder,updateOrder,transitionOrder,assignTeam,acceptAssignment,completeAssignment,reserveRemnant,releaseRemnant,addOrderNote,addOrderAttachment,addOrderCost,reverseOrderCost,consumeMaterial,createPurchase,approvePurchase,rejectPurchase,receivePurchase,submitReview,employeePerformance,totals,validateState};
 });
