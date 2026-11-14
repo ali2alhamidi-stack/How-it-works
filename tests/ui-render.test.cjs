@@ -63,5 +63,5 @@ test('guide and documents routes render real role-scoped actions without leaking
  const guide=await render('owner','guide');assert.deepEqual(guide.errors,[]);assert.ok(guide.html.includes('awamer-guide-list'));assert.ok(guide.html.includes('خطوات'));
  const documents=await render('owner','documents');assert.deepEqual(documents.errors,[]);assert.ok(documents.html.includes('awamer-document-templates'));assert.ok(documents.html.includes('data-action="print-quote"'));
  const staff=await render('emp1','documents');assert.deepEqual(staff.errors,[]);assert.ok(!staff.html.includes('data-action="print-quote"'));assert.ok(!staff.html.includes('data-action="print-cost-summary"'));
- const staffGuide=await render('emp1','guide');assert.deepEqual(staffGuide.errors,[]);assert.ok(staffGuide.html.includes('مهامك'));
+ const staffGuide=await render('emp1','guide');assert.deepEqual(staffGuide.errors,[]);assert.ok(staffGuide.html.includes('مهامي'));
 });
