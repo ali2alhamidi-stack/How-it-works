@@ -4,7 +4,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
 const Model=require('../src/model.js'),{redactState}=require('../server/redaction.cjs');
 const source=name=>fs.readFileSync(path.join(__dirname,'../src',name+'.js'),'utf8');
-const modules=['catalog','qr','calculators','nesting','nesting-ui','model','inventory-engine','material-catalog','material-bindings','command-capture','connected-ui','inventory-ui'];
+const modules=['catalog','qr','calculators','nesting','nesting-ui','model','inventory-engine','material-catalog','material-bindings','command-capture','connected-ui','awamer-onboarding','awamer-documents','inventory-ui'];
 async function render(userId,route,options={}){
  const full=Model.seed(),user=full.users.find(u=>u.id===userId),account={id:'account-'+userId,userId,tenantId:'tenant-a',kind:'tenant',role:user.role,name:user.name,email:userId+'@example.test'},state=redactState(full,userId);
  const errors=[],listeners={},nodes=new Map();
@@ -58,3 +58,14 @@ test('owner sees direct operating costs and employee has no cost editor or amoun
 });
 
 test('cut optimizer is available to authorized managers only',async()=>{const owner=await render('owner','nesting');assert.equal(owner.errors.length,0);assert.ok(owner.html.includes('cut-form'));const employee=await render('emp1','nesting');assert.ok(employee.html.includes('هذه الصفحة خارج صلاحياتك'));});
+
+test('awamer guide and print actions are gated by permissions',async()=>{
+ const guide=await render('owner','guide');
+ assert.deepEqual(guide.errors,[]);
+ assert.ok(guide.html.includes('ابدأ هنا')&&guide.html.includes('awamer-guide-progress'));
+ const ownerOrder=await render('owner','order/o1');
+ assert.ok(ownerOrder.html.includes('print-quote'));
+ const employeeOrder=await render('emp1','order/o1');
+ assert.ok(!employeeOrder.html.includes('print-quote'));
+ assert.ok(!employeeOrder.html.includes('print-delivery')||employeeOrder.html.includes('تم التسليم'));
+});

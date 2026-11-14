@@ -1,0 +1,7 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),G=require('../src/awamer-onboarding.js');
+const context=()=>({brand:{name:'مؤسسة طباعة',activity:'دعاية وإعلان'},actor:{role:'owner'},branches:[{id:'b1',active:true,name:'الفرع الرئيسي'}],users:[{id:'owner',role:'owner',branchIds:['b1'],active:true}],materials:[],clients:[],orders:[],can:()=>true});
+test('empty tenant shows real setup steps without fabricating completion',()=>{const ctx=context(),xs=G.steps(ctx),p=G.progress(xs);assert.equal(xs.length,6);assert.equal(p.count,2);assert.equal(p.percent,33);assert.ok(G.banner(ctx).includes('ابدأ من هنا'));});
+test('completed owner onboarding no longer blocks dashboard',()=>{const ctx=context();ctx.users.push({id:'e',role:'employee',active:true,branchIds:['b1']});ctx.materials.push({branchId:'b1'});ctx.clients.push({branchId:'b1'});ctx.orders.push({branchId:'b1'});assert.equal(G.progress(G.steps(ctx)).percent,100);assert.equal(G.banner(ctx),'');});
+test('permissions hide unavailable owner steps and escape dynamic user data',()=>{const ctx=context();ctx.can=id=>id==='manage_orders';ctx.brand.name='<img src=x onerror=alert(1)>';assert.equal(G.steps(ctx).length,2);assert.ok(!G.page(ctx).includes('onerror='));});
+test('employee gets task-specific instructions instead of admin setup',()=>{const ctx=context();ctx.actor.role='employee';assert.match(G.page(ctx),/فتح مهامي/);assert.equal(G.banner(ctx),'');});

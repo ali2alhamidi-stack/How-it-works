@@ -16,7 +16,7 @@ function fixture(overrides={}){
 
 test('loads actual tenants and derives visible statistics from returned rows',async()=>{
  const f=fixture();await f.instance.ready;assert.deepEqual(f.calls,[{path:'/api/platform/tenants',method:'GET',body:undefined}]);
- assert.match(f.root.innerHTML,/منشأة الطباعة/);assert.match(f.root.innerHTML,/owner@example.test/);assert.match(f.root.innerHTML,/4 \/ 10 مستخدم/);assert.match(f.root.innerHTML,/23 أمر عمل/);assert.match(f.root.innerHTML,/Qodynex/);
+ assert.match(f.root.innerHTML,/منشأة الطباعة/);assert.match(f.root.innerHTML,/owner@example.test/);assert.match(f.root.innerHTML,/4 \/ 10 مستخدم/);assert.match(f.root.innerHTML,/23 أمر عمل/);assert.match(f.root.innerHTML,/أوامر/);
 });
 
 test('denies a tenant account without fetching platform data',async()=>{

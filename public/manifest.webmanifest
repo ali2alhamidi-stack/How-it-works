@@ -1,7 +1,7 @@
 {
   "id": "/",
   "name": "نظام أوامر العمل والتشغيل",
-  "short_name": "أوامر العمل",
+  "short_name": "أوامر",
   "lang": "ar",
   "dir": "rtl",
   "description": "إدارة الإنتاج والفروع والخامات وفريق العمل للدعاية والإعلان",
@@ -9,7 +9,7 @@
   "scope": "/",
   "display": "standalone",
   "background_color": "#f7f6fa",
-  "theme_color": "#63349b",
+  "theme_color": "#052e48",
   "icons": [
     {
       "src": "/assets/app-icon-192.png",

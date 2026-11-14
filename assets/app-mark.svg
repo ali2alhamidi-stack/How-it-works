@@ -1,11 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <title>Qodynex</title>
-  <defs>
-    <linearGradient id="surface" x1="60" y1="24" x2="430" y2="500" gradientUnits="userSpaceOnUse"><stop stop-color="#7948B9"/><stop offset="1" stop-color="#44216D"/></linearGradient>
-    <linearGradient id="check" x1="266" y1="210" x2="411" y2="184" gradientUnits="userSpaceOnUse"><stop stop-color="#8CF0DC"/><stop offset="1" stop-color="#36C6B8"/></linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="148" fill="url(#surface)"/>
-  <rect x="12" y="12" width="488" height="488" rx="138" stroke="#FFFFFF" stroke-opacity=".12" stroke-width="2"/>
-  <path d="M348 266a105 105 0 1 0-90 105c24 0 46-8 63-21l59 59" stroke="white" stroke-width="40" stroke-linecap="round"/>
-  <path d="m274 242 47 48 76-100" stroke="url(#check)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t"><title id="t">أوامر</title><defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#062f4b"/><stop offset="1" stop-color="#074c60"/></linearGradient></defs><rect width="512" height="512" rx="108" fill="url(#bg)"/><rect x="106" y="110" width="296" height="325" rx="37" fill="#fff"/><rect x="180" y="84" width="148" height="64" rx="20" fill="#caa349"/><circle cx="254" cy="89" r="16" fill="#fff"/><path d="m147 213 29 27 40-49M147 302l29 27 40-49" stroke="#c7a048" stroke-width="23" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M237 220h110M237 305h110" stroke="#7394a4" stroke-width="18" stroke-linecap="round"/><circle cx="369" cy="382" r="67" fill="#078e97" stroke="#062f4b" stroke-width="14"/><circle cx="369" cy="382" r="24" fill="#fff"/></svg>
