@@ -1,7 +1,7 @@
 /* Only the application shell enters Cache Storage, never API or customer data. */
 'use strict';
-const CACHE='wo-shell-dc4f76929c6b07d2';
-const FILES=["/", "/index.html", "/app-f5b911f8bb066faf.js", "/styles-7ff8e8a510399e82.css", "/manifest.webmanifest", "/assets/Arabic-Bold.ttf", "/assets/Arabic-Regular.ttf", "/assets/app-icon-192.png", "/assets/app-icon-512.png", "/assets/app-mark.svg", "/assets/brand.jpg"];
+const CACHE='wo-shell-880ef42eae11513b';
+const FILES=["/", "/index.html", "/app-dc67578146bff387.js", "/styles-8a0c04079b72be3f.css", "/manifest.webmanifest", "/assets/Arabic-Bold.ttf", "/assets/Arabic-Regular.ttf", "/assets/app-icon-192.png", "/assets/app-icon-512.png", "/assets/app-mark.svg", "/assets/awamer-logo.webp", "/assets/brand.jpg"];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES.map(url=>new Request(url,{cache:'reload'})))).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('wo-shell-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
