@@ -17,7 +17,7 @@ async function render(userId,route,options={}){
  return {html:app.innerHTML,errors};
 }
 test('owner central routes render with an actual server snapshot and the shared account page',async()=>{
- for(const route of ['home','orders','proofs','nesting','order/o1','newOrder','production','catalog','inventory','purchases','clients','employees','employee/emp1','branches','reviews','reports','activity','settings','sync','account']){
+ for(const route of ['home','guide','documents','orders','proofs','nesting','order/o1','newOrder','production','catalog','inventory','purchases','clients','employees','employee/emp1','branches','reviews','reports','activity','settings','sync','account']){
   const view=await render('owner',route);assert.deepEqual(view.errors,[],route);assert.ok(!view.html.includes('نحتاج إلى مراجعة هذه الصفحة'),route);assert.ok(view.html.includes('app-shell'),route);
  }
  const account=await render('owner','account');assert.ok(account.html.includes('central-password-form'));assert.ok(account.html.includes('owner@example.test'));
@@ -58,3 +58,10 @@ test('owner sees direct operating costs and employee has no cost editor or amoun
 });
 
 test('cut optimizer is available to authorized managers only',async()=>{const owner=await render('owner','nesting');assert.equal(owner.errors.length,0);assert.ok(owner.html.includes('cut-form'));const employee=await render('emp1','nesting');assert.ok(employee.html.includes('هذه الصفحة خارج صلاحياتك'));});
+
+test('guide and documents routes render real role-scoped actions without leaking prices to employees',async()=>{
+ const guide=await render('owner','guide');assert.deepEqual(guide.errors,[]);assert.ok(guide.html.includes('awamer-guide-list'));assert.ok(guide.html.includes('خطوات'));
+ const documents=await render('owner','documents');assert.deepEqual(documents.errors,[]);assert.ok(documents.html.includes('awamer-document-templates'));assert.ok(documents.html.includes('data-action="print-quote"'));
+ const staff=await render('emp1','documents');assert.deepEqual(staff.errors,[]);assert.ok(!staff.html.includes('data-action="print-quote"'));assert.ok(!staff.html.includes('data-action="print-cost-summary"'));
+ const staffGuide=await render('emp1','guide');assert.deepEqual(staffGuide.errors,[]);assert.ok(staffGuide.html.includes('مهامي'));
+});
