@@ -99,7 +99,8 @@ function createCommercial({store,origin,env=process.env,fetchImpl=globalThis.fet
    const tenant=store.getTenant(current.tenant_id);
    if(!tenant)S.error(404,'NOT_FOUND','المنشأة غير موجودة');
    const today=date().slice(0,10);
-   const start=tenant.expires_at&&tenant.expires_at>today?tenant.expires_at:today;
+   const previousExpiry=tenant.expires_at?.slice(0,10);
+   const start=previousExpiry&&previousExpiry>today?previousExpiry:today;
    const millis=Date.parse(start+'T00:00:00Z')+current.term_days*86400000;
    const expiry=new Date(millis).toISOString().slice(0,10);
    db.prepare('UPDATE tenants SET expires_at=? WHERE id=?').run(expiry,tenant.id);
@@ -117,7 +118,10 @@ function createCommercial({store,origin,env=process.env,fetchImpl=globalThis.fet
   const id=S.safeId(data.tenantId,'المنشأة');
   if(!store.getTenant(id))S.error(404,'NOT_FOUND','المنشأة غير موجودة');
   if(data.revoke===true){
-   db.prepare('UPDATE whatsapp_contacts SET revoked_at=?,updated_at=? WHERE tenant_id=?').run(date(),date(),id);
+   store.transaction(()=>{
+    db.prepare('UPDATE whatsapp_contacts SET revoked_at=?,updated_at=? WHERE tenant_id=?').run(date(),date(),id);
+    db.prepare("UPDATE whatsapp_outbox SET status='cancelled' WHERE tenant_id=? AND status='queued'").run(id);
+   });
    return {ok:true,revoked:true};
   }
   if(typeof data.phone!=='string'||!/^\+[1-9]\d{7,14}$/.test(data.phone))S.error(400,'PHONE_INVALID','الرقم يجب أن يتبع الصيغة الدولية +966...');

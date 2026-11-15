@@ -101,3 +101,16 @@ test('WhatsApp requires consent, queues one reminder and does not duplicate conf
   assert.equal(f.commercial.queueReminders(),0);
  }finally{f.store.close();}
 });
+
+
+test('Revoking WhatsApp consent cancels queued notification atomically',()=>{
+ const extra={WHATSAPP_ENABLE_SENDING:'true',WHATSAPP_ACCESS_TOKEN:'test',WHATSAPP_PHONE_NUMBER_ID:'1234567890',WHATSAPP_GRAPH_VERSION:'v23.0',WHATSAPP_EXPIRY_TEMPLATE:'subscription_expiring',WHATSAPP_APP_SECRET:'secret',WHATSAPP_VERIFY_TOKEN:'token'};
+ const f=fixture('2026-11-19',extra);
+ try {
+  f.commercial.saveContact({tenantId:f.tenant.id,phone:'+966500000000',consentAt:now().toISOString()});
+  assert.equal(f.commercial.queueReminders(),1);
+  assert.equal(f.commercial.snapshot().notifications[0].status,'queued');
+  f.commercial.saveContact({tenantId:f.tenant.id,revoke:true});
+  assert.equal(f.commercial.snapshot().notifications[0].status,'cancelled');
+ } finally { f.store.close(); }
+});

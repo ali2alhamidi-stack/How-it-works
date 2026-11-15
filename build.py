@@ -30,6 +30,9 @@ for pattern in ['app-*.js','styles-*.css']:
 (PUBLIC/js_name).write_text(central_js,encoding='utf-8',newline='\n');(PUBLIC/css_name).write_text(central_css,encoding='utf-8',newline='\n')
 for filename in ['brand.jpg','app-mark.svg','app-icon-192.png','app-icon-512.png','awamer-logo.webp','Arabic-Regular.ttf','Arabic-Bold.ttf']:
     shutil.copyfile(ROOT/'assets'/filename,PUBLIC/'assets'/filename)
+# Keep commercial admin assets as build inputs, not transient files checked into public/.
+for filename in ['commercial.html','commercial.css','commercial.js']:
+    shutil.copyfile(ROOT/'src'/filename,PUBLIC/filename)
 shell=(ROOT/'src/shell.html').read_text(encoding='utf-8')
 shell=shell.replace('<style>/*__STYLES__*/</style>','<link rel="stylesheet" href="/'+css_name+'"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/svg+xml" href="/assets/app-mark.svg"><link rel="apple-touch-icon" href="/assets/app-icon-192.png">')
 shell=shell.replace('<script>/*__SCRIPTS__*/</script>','<script src="/'+js_name+'" defer></script>')
