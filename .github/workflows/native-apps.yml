@@ -1,0 +1,80 @@
+name: Build Windows EXE and Android APK
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build desktop executable
+        run: dotnet publish native/windows/Awamer.Desktop/Awamer.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o out/windows
+      - name: Package executable
+        shell: pwsh
+        run: |
+          if (!(Test-Path out/windows/Awamer.exe)) { throw 'Windows executable missing' }
+          Compress-Archive -Path out/windows/* -DestinationPath out/Awamer-Windows-x64.zip -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Awamer-Windows-EXE-x64-${{ github.sha }}
+          path: out/Awamer-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 30
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Install Android SDK
+        run: sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+      - name: Prepare optional release signing
+        shell: bash
+        env:
+          KEY_B64: ${{ secrets.AWAMER_ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.AWAMER_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.AWAMER_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.AWAMER_ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$KEY_B64" && -n "$STORE_PASSWORD" && -n "$KEY_ALIAS" && -n "$KEY_PASSWORD" && "${{ github.event_name }}" != "pull_request" ]]; then
+            mkdir -p "$RUNNER_TEMP/awamer-signing"
+            echo "$KEY_B64" | base64 -d > "$RUNNER_TEMP/awamer-signing/release.jks"
+            echo "AWAMER_KEYSTORE_FILE=$RUNNER_TEMP/awamer-signing/release.jks" >> "$GITHUB_ENV"
+            echo "AWAMER_KEYSTORE_PASSWORD=$STORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "AWAMER_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "AWAMER_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "AWAMER_SIGNED=true" >> "$GITHUB_ENV"
+          fi
+      - name: Build installable test APK
+        run: gradle --no-daemon -p native/android :app:assembleDebug
+      - name: Build signed release APK
+        if: env.AWAMER_SIGNED == 'true'
+        run: gradle --no-daemon -p native/android :app:assembleRelease
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Awamer-Android-TEST-APK-${{ github.sha }}
+          path: native/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: env.AWAMER_SIGNED == 'true'
+        with:
+          name: Awamer-Android-SIGNED-APK-${{ github.sha }}
+          path: native/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 30
