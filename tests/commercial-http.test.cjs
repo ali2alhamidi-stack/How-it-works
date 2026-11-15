@@ -20,6 +20,8 @@ test('commercial endpoints enforce platform login and CSRF; Meta verifies callba
   assert.equal((await request('/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=abc123')).status,403);
   const verified=await request('/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=verify-secret-123&hub.challenge=abc123');
   assert.equal(verified.status,200);assert.equal(verified.body,'abc123');
+  const untrustedPayment=await fetch(base+'/api/webhooks/moyasar/bill_unknown/'+'0'.repeat(64),{method:'POST',headers:{'Content-Type':'text/plain'},body:'callback'}); 
+  assert.equal(untrustedPayment.status,403);
   const login=await request('/api/login','POST',{email:'platform@tests.example',password:'StrongPlatformPass!2026'});
   assert.equal(login.status,200);
   const auth={cookie:login.cookie.split(';')[0],csrf:login.body.csrfToken};

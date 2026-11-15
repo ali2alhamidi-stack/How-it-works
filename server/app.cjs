@@ -56,7 +56,10 @@ function createApplication(options={}) {
  if(p==='/api/webhooks/whatsapp'&&method==='POST')return json(res,200,await commercial.receiveWhatsApp(req));
  const paymentWebhook=p.match(/^\/api\/webhooks\/moyasar\/([A-Za-z0-9_-]{1,160})\/([a-f0-9]{64})$/);
  if(paymentWebhook&&method==='POST'){
-  await body(req,64*1024);
+  // Payment invoice callbacks may use JSON or form encoding; the body is untrusted.
+  // Authorization is the HMAC callback token, followed by a fresh provider API read.
+  let size=0;
+  for await(const part of req){size+=part.length;if(size>64*1024)S.error(413,'BODY_TOO_LARGE','تجاوز إشعار الدفع الحجم المسموح');}
   return json(res,200,await commercial.verifyPaymentWebhook(paymentWebhook[1],paymentWebhook[2]));
  }
  const writes=!['GET','HEAD'].includes(method);if(writes)trusted(req);let ip=req.socket.remoteAddress||'unknown';if(options.trustProxy===true){const forwarded=req.headers['x-forwarded-for'];if(typeof forwarded==='string'&&forwarded.length<=1024){const candidate=forwarded.split(',').at(-1).trim();if(isIP(candidate))ip=candidate;}}rate('api:'+ip,600,60000);
