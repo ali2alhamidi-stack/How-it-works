@@ -1,0 +1,45 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#153c49">
+<title>التسليم والتركيب | أوامر</title><link rel="stylesheet" href="/document.css">
+<script src="/delivery-page.js" defer></script></head><body>
+<main class="doc-frame" style="max-width:900px">
+<header class="doc-header"><div class="doc-brand"><img class="doc-brand-mark" src="/assets/awamer-logo.webp" alt="أوامر">
+ <div><strong class="doc-brand-name">التسليم والتركيب</strong><div class="doc-brand-caption">AWAMER · FIELD OPERATIONS</div></div></div><a class="doc-btn" href="/#/orders">العودة للأوامر</a></header>
+ <h1 class="doc-main-title">توثيق التنفيذ الميداني</h1><p class="doc-summary" id="order-reference">جار تحميل أمر العمل...</p>
+ <div id="notice" class="doc-callout" role="status"></div>
+ <section class="doc-meta" id="start-panel" hidden><h2 class="doc-section-title">تفعيل التوثيق لهذا الأمر</h2>
+ <p>يتطلب التسليم بعد تفعيل التوثيق صور قبل وبعد وتوقيع المستلم. الأوامر القديمة لا تتغير آليا.</p>
+ <label><input type="checkbox" id="need-night"> لوحة مضيئة تتطلب صورة ليلية</label>
+ <button id="start-delivery" class="doc-cta" type="button">تفعيل توثيق التسليم</button></section>
+ <section class="doc-meta" id="evidence-panel" hidden>
+  <h2 class="doc-section-title">الفحص والصور</h2><p>حدد الأدوات المستخدمة قبل الخروج، وارفع صورة الموقع قبل التركيب وبعده.</p>
+  <div class="doc-info-grid" id="checklist"></div>
+  <div class="doc-info-grid">
+   <label>صورة قبل التنفيذ<input id="before" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+   <label>صورة بعد التنفيذ<input id="after" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+   <label id="night-label" hidden>صورة بعد الإضاءة ليلا<input id="night" type="file" accept="image/jpeg,image/png,image/webp"></label>
+  </div><button id="evidence-save" class="doc-cta" type="button">حفظ صور وقائمة التحقق</button>
+ </section>
+ <section class="doc-meta" id="confirm-panel" hidden style="margin-top:18px">
+  <h2 class="doc-section-title">توقيع الاستلام والضمان</h2>
+  <p>لا يعتمد التسليم حتى تكون مرحلة الأمر «جاهز للتسليم»، وفحص الجودة ناجحا، وجميع الأدلة محفوظة.</p>
+  <label>اسم المستلم<input id="recipient" type="text" maxlength="120"></label>
+  <label>رقم دعم الصيانة<input id="support-phone" type="tel" maxlength="30" dir="ltr"></label>
+  <label>تغطية الضمان حسب العقد<input id="coverage" type="text" maxlength="1200"></label>
+  <label for="receipt-signature">توقيع العميل</label><canvas id="receipt-signature" class="doc-canvas" width="440" height="190" aria-label="توقيع العميل بالإصبع أو الماوس"></canvas>
+  <label><input type="checkbox" id="consent"> يقر المستلم باستلام العمل وفق الشروط المسجلة</label>
+  <div class="doc-modal-buttons"><button id="confirm-delivery" type="button" class="doc-cta">تأكيد التسليم وإصدار المستندات</button>
+  <button id="clear-signature" type="button" class="doc-btn">مسح التوقيع</button></div>
+ </section>
+ <div id="completed-links"></div>
+</main>
+<style>
+.doc-meta{margin:15px 0}
+.doc-meta label{font-size:12px;font-weight:700;display:block;line-height:2}
+.doc-meta input[type=text],.doc-meta input[type=tel],.doc-meta input[type=file]{display:block;width:100%;border:1px solid #d5e5e2;padding:10px;border-radius:9px}
+.doc-info-grid label{min-width:0;word-wrap:break-word}
+#checklist{grid-template-columns:repeat(3,1fr)}
+#checklist label{background:#f5f9f8;padding:10px 12px;border-radius:10px}
+@media(max-width:560px){#checklist{grid-template-columns:repeat(2,1fr)}.doc-info-grid{grid-template-columns:1fr}}
+</style></body></html>
