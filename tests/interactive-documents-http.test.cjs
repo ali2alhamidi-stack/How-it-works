@@ -12,6 +12,7 @@ const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAA
 async function start(){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'awamer-doc-http-'));
  const app=createApplication({dbPath:path.join(dir,'test.sqlite'),origin:ORIGIN,publicDir:dir,secureCookies:false,
+  env:{...process.env,AW_DOC_IP_ENCRYPTION_KEY:'a'.repeat(64)},
   bootstrapOwner:{email:'platform@documents.test',name:'مالك المنصة',password:'Platform!2026Secure'}});
  const server=http.createServer(app.handler);
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
