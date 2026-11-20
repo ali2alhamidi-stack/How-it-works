@@ -22,6 +22,7 @@
         case 'update_brand':entry=['brand.update',{patch:clone(state.brand)}];break;
         case 'update_pricing':entry=['pricing.update',{pricing:clone(state.settings.pricing)}];break;
         case 'update_prices':entry=['service-prices.update',{prices:clone(state.settings.servicePrices)}];break;
+        case 'update_service_catalog':entry=['service-catalog.update',{services:clone(state.settings.customServices||[])}];break;
         case 'update_performance':entry=['performance.update',{weights:clone(state.settings.performance)}];break;
         case 'update_connections':entry=['connections.update',{publicBaseUrl:state.settings.publicBaseUrl||'',apiBaseUrl:state.settings.apiBaseUrl||''}];break;
         case 'update_permissions':entry=['user.permissions',{id,permissions:find('users').permissions}];break;
