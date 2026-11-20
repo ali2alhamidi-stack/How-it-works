@@ -171,6 +171,22 @@
     if(!obj(s.brand)||!obj(s.settings)||!obj(s.settings.performance)||!obj(s.settings.pricing)||!obj(s.drafts))fail('إعدادات الهوية أو النظام أو المسودات غير صالحة');
     ['name','activity','primary','secondary','currency','footer','logo'].forEach(k=>text(s.brand[k],`الهوية ${k}`,k==='logo'?6000000:2000,true));if(!s.brand.name.trim())fail('اسم المنشأة مطلوب');if(s.brand.logo&&!/^data:image\/(png|jpeg|webp);base64,[a-z\d+/=]+$/i.test(s.brand.logo))fail('الشعار يجب أن يكون صورة PNG أو JPEG أو WebP محلية');
     if(s.settings.servicePrices!==undefined){if(!obj(s.settings.servicePrices))fail('قائمة أسعار الخدمات غير صالحة');Object.values(s.settings.servicePrices).forEach(v=>number(v,'سعر الخدمة'));}
+    if(s.settings.customServices!==undefined){
+      if(!Array.isArray(s.settings.customServices)||s.settings.customServices.length>1000)fail('سجل خدمات المنشأة غير صالح');
+      const ids=new Set(),categories=['paper','banners','stickers','acrylic','letters','stamps','gifts','projects','models','flags','packaging','installation'];
+      for(const service of s.settings.customServices){
+        if(!obj(service))fail('سجل الخدمة غير صالح');
+        text(service.id,'معرف الخدمة',80);
+        if(!/^[a-z0-9_-]+$/i.test(service.id)||ids.has(service.id))fail('معرف خدمة مكرر أو غير صالح');
+        ids.add(service.id);
+        text(service.name,'اسم الخدمة',120);
+        oneOf(service.category,categories,'قسم الخدمة');
+        text(service.unit,'وحدة بيع الخدمة',40);
+        oneOf(service.calculator,['sheet','paper','roll','letters','led','general'],'حاسبة الخدمة');
+        number(service.basePrice,'السعر المرجعي للخدمة',0,1e9);
+        bool(service.active,'حالة الخدمة');
+      }
+    }
     ['primary','secondary'].forEach(k=>{if(!/^#[\da-f]{6}$/i.test(s.brand[k]))fail('لون الهوية غير صالح');});
     ['onTimeWeight','qualityWeight','outputWeight'].forEach(k=>number(s.settings.performance[k],'وزن تقييم الأداء',0,100));if(Object.values(s.settings.performance).filter(v=>typeof v==='number').reduce((a,b)=>a+b,0)<=0)fail('يجب تحديد وزن واحد للأداء على الأقل');
     ['letterMinHeight','logoMultiplier','markup'].forEach(k=>number(s.settings.pricing[k],'إعداد التسعير',0,10000));number(s.settings.workdayHours,'ساعات العمل',.01,24);text(s.settings.publicBaseUrl,'رابط التقييم',2000,true);if(s.settings.publicBaseUrl&&!/^https?:\/\//i.test(s.settings.publicBaseUrl))fail('رابط التقييم يجب أن يبدأ بـ http أو https');
