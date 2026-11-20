@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const S = require('./security.cjs');
 const M = require('../src/model.js');
+const {applyMigrations}=require('./migrations/001-documents.cjs');
 function createStore(dbPath=':memory:') {
   S.secureDirectory(dbPath);
   const db=new DatabaseSync(dbPath);
@@ -16,6 +17,7 @@ function createStore(dbPath=':memory:') {
     CREATE TABLE IF NOT EXISTS platform_audit(id TEXT PRIMARY KEY,at TEXT NOT NULL,actor_id TEXT,action TEXT NOT NULL,tenant_id TEXT,detail TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL);
     INSERT OR IGNORE INTO metadata(key,value) VALUES('schema_version','2');`);
+  applyMigrations(db);
   if(dbPath!==':memory:'){try{fs.chmodSync(dbPath,0o600);}catch{}}
   function transaction(fn){db.exec('BEGIN IMMEDIATE');try{const value=fn();db.exec('COMMIT');return value;}catch(e){db.exec('ROLLBACK');throw e;}}
   function audit(actorId,action,tenantId,detail=''){db.prepare('INSERT INTO platform_audit VALUES(?,?,?,?,?,?)').run(S.id('pa'),new Date().toISOString(),actorId,action,tenantId,detail);}
