@@ -7,7 +7,7 @@ const cp=require('node:child_process');
 const S=require('../../security.cjs');
 const R=require('../../../src/documents/renderer.js');
 let busy=false;
-async function makePdf(view,{url,assets,tenantId,env=process.env}={}){
+async function makePdf(view,{url,getAsset,env=process.env}={}){
  if(busy)S.error(429,'PDF_BUSY','هناك ملف آخر قيد التجهيز، حاول مجددا');
  const chromium=env.AWAMER_CHROMIUM_PATH||'/usr/bin/chromium';
  if(!fs.existsSync(chromium))S.error(503,'PDF_UNAVAILABLE','محرك PDF لم يجهز على الخادم');
@@ -17,8 +17,8 @@ async function makePdf(view,{url,assets,tenantId,env=process.env}={}){
   // Embed all resources. Chromium has no need to request data from the network.
   const copy=structuredClone(view);
   for(const line of copy.snapshot.lines||[]){
-   if(line.previewAssetId&&assets){
-    const file=assets.read(tenantId,line.previewAssetId);
+   if(line.previewAssetId&&getAsset){
+    const file=getAsset(line.previewAssetId);
     line.previewUrl='data:'+file.mime+';base64,'+file.bytes.toString('base64');
    }
   }
