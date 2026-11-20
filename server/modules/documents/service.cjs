@@ -116,7 +116,7 @@ function createDocuments({store,origin,mediaRoot,env=process.env}){
   return {token,url:origin+'/d/'+token};
  }
  function createQuote(auth,data){
-  checkKeys(data,['requestId','branchId','clientId','title','description','category','priority','dueAt','expiresAt','lines','tiers']);
+  checkKeys(data,['requestId','branchId','clientId','title','description','category','priority','dueAt','expiresAt','lines','tiers','businessPhone']);
   const requestId=S.safeId(data.requestId,'معرف الطلب'),branchId=S.safeId(data.branchId,'الفرع'),clientId=S.safeId(data.clientId,'العميل');
   requireActor(auth,'manage_orders',branchId);requireActor(auth,'view_financials',branchId);
   const t=tenant(auth.a.tenant_id),s=state(t);
@@ -130,7 +130,7 @@ function createDocuments({store,origin,mediaRoot,env=process.env}){
    category:text(data.category||'projects','القسم',60),priority:['normal','high','urgent'].includes(data.priority)?data.priority:'normal',
    dueAt:time(data.dueAt,'موعد التسليم'),expiresAt:expiryDate(data.expiresAt),
    branchId,clientId,clientName:s.clients.find(c=>c.id===clientId).name,branchName:s.branches.find(b=>b.id===branchId).name,
-   brandName:s.brand.name,brandLogo:s.brand.logo||'',currency,lines:[],tiers:options,createdAt:now()};
+   brandName:s.brand.name,brandLogo:s.brand.logo||'',brandPhone:boundedText(data.businessPhone,'واتساب المنشأة',30),currency,lines:[],tiers:options,createdAt:now()};
   const created=[];
   try{
    const doc=store.transaction(()=>{
@@ -194,13 +194,17 @@ function createDocuments({store,origin,mediaRoot,env=process.env}){
     const {doc,v,s}=cap(token,purpose);
     const snap=structuredClone(v.snapshot);
     if(purpose==='quote'){
-     snap.initialTotalMinor=totalFor(snap).totalAmountMinor;
+     const accepted=doc.status==='accepted'?db.prepare('SELECT quote_line_id,quantity FROM aw_job_lines WHERE tenant_id=? AND quote_document_id=?').all(doc.tenant_id,doc.id):[];
+     const quantities=Object.fromEntries(accepted.map(x=>[x.quote_line_id,x.quantity]));
+     const pricing=totalFor(snap,doc.selected_tier||'standard',quantities);
+     snap.initialTotalMinor=pricing.totalAmountMinor;
      snap.status=doc.status;
      snap.lines=snap.lines.map(x=>({...x,previewUrl:x.previewAssetId?origin+'/api/public/documents/'+token+'/assets/'+x.previewAssetId:null}));
-     return {kind:purpose,documentId:doc.id,hash:v.sha256,version:v.version_no,snapshot:snap,pricing:totalFor(snap),consentText:CONSENT,token};
+     return {kind:purpose,documentId:doc.id,hash:v.sha256,version:v.version_no,snapshot:snap,pricing,consentText:CONSENT,token};
     }
     if(purpose==='workshop'){
      const o=s.orders.find(x=>x.id===doc.order_id);
+     snap.lines=(snap.lines||[]).map(x=>({...x,previewUrl:x.previewAssetId?origin+'/api/public/documents/'+token+'/assets/'+x.previewAssetId:null}));
      return {kind:purpose,documentId:doc.id,hash:v.sha256,version:v.version_no,snapshot:{...snap,status:o?.status||snap.status}};
     }
     return {kind:purpose,documentId:doc.id,hash:v.sha256,version:v.version_no,snapshot:snap};
@@ -210,7 +214,10 @@ function createDocuments({store,origin,mediaRoot,env=process.env}){
  }
  function publicAsset(token,assetId){
   S.safeId(assetId,'المرفق');
-  const {t,v}=cap(token,'quote');
+  let ctx;
+  for(const purpose of ['quote','workshop']){try{ctx=cap(token,purpose);break;}catch(e){if(!['LINK_EXPIRED','NOT_FOUND','VERSION_EXPIRED'].includes(e.code))throw e;}}
+  if(!ctx)S.error(404,'NOT_FOUND','الملف غير متاح');
+  const {t,v}=ctx;
   if(!v.snapshot.lines.some(line=>line.previewAssetId===assetId))S.error(404,'ASSET_NOT_FOUND','المرفق غير موجود في العرض');
   return assets.read(t.id,assetId);
  }
@@ -275,7 +282,7 @@ function createDocuments({store,origin,mediaRoot,env=process.env}){
       .run(signatureId,t.id,doc.id,v.id,name,digest(CONSENT),sig.id,v.sha256,date,ipCipher,boundedText(context.userAgent,'الجهاز',500),'explicit_canvas','recorded');
     db.prepare("UPDATE aw_documents SET status='accepted',order_id=?,accepted_order_id=?,selected_tier=?,accepted_total_minor=?,updated_at=? WHERE id=?")
       .run(order.id,order.id,total.tierKey,total.totalAmountMinor,date,doc.id);
-    db.prepare('UPDATE aw_document_links SET revoked_at=? WHERE document_id=? AND purpose=? AND revoked_at IS NULL').run(date,doc.id,'quote');
+    // Keep the capability readable after acceptance: it becomes strictly read-only.
     const safeLines=total.lines.map(x=>{
      const original=v.snapshot.lines.find(a=>a.id===x.id);
      return {name:x.name,quantity:x.quantity,unit:x.unit,widthMm:original.widthMm,heightMm:original.heightMm,specs:original.specs,previewAssetId:original.previewAssetId};
@@ -413,7 +420,46 @@ function createDocuments({store,origin,mediaRoot,env=process.env}){
    return {delivered:true,orderId:order.id,deliveryUrl:delivery.url,warrantyUrl:warranty?.url||null};
   });}catch(e){created.forEach(assets.remove);throw e;}
  }
- return {createQuote,publish,list,ownedDoc,version,publicDocument,publicAsset,quotePreview,accept,uploadEvidence,tracker,
+
+ function staffDocument(auth,documentId){
+  const d=ownedDoc(auth,documentId,dummyPermission(deref(auth,documentId)));
+  const v=version(d.id),snapshot=structuredClone(v.snapshot);
+  if(d.type==='quote')requireActor(auth,'view_financials',d.branch_id);
+  return {kind:d.type,documentId:d.id,version:v.version_no,hash:v.sha256,snapshot,
+    ...(d.type==='quote'?{pricing:totalFor(snapshot,d.selected_tier||'standard'),consentText:CONSENT}:{}),status:d.status};
+ }
+ function dummyPermission(){return 'manage_orders';}
+ function deref(){return null;}
+ function renewDocumentLink(auth,documentId){
+  const d=ownedDoc(auth,documentId,dummyPermission());
+  if(d.type==='quote')requireActor(auth,'view_financials',d.branch_id);
+  if(!['published','accepted','completed'].includes(d.status))S.error(409,'DOCUMENT_LOCKED','المستند غير منشور');
+  const v=version(d.id);
+  return store.transaction(()=>{
+   db.prepare('UPDATE aw_document_links SET revoked_at=? WHERE document_id=? AND revoked_at IS NULL').run(now(),d.id);
+   const until=d.type==='quote'?v.snapshot.expiresAt:daysFromNow(365);
+   const link=share({tenantId:d.tenant_id,id:d.id},v.id,d.type,until);
+   record(d,v,'link_renewed','staff',auth.a.user_id);
+   return {url:link.url,expiresAt:until};
+  });
+ }
+ function renewTrackingLink(auth,orderId){
+  S.safeId(orderId,'الأمر');
+  if(auth?.a?.kind!=='tenant')S.error(403,'FORBIDDEN','حساب منشأة مطلوب');
+  const t=tenant(auth.a.tenant_id),s=state(t),o=s.orders.find(x=>x.id===orderId);
+  if(!o)S.error(404,'NOT_FOUND','أمر العمل غير موجود');
+  requireActor(auth,'manage_orders',o.branchId);
+  const token=S.random(32);
+  store.transaction(()=>{
+   db.prepare('UPDATE aw_tracking_links SET revoked_at=? WHERE tenant_id=? AND order_id=? AND revoked_at IS NULL').run(now(),t.id,o.id);
+   db.prepare('INSERT INTO aw_tracking_links(id,tenant_id,order_id,token_hash,expires_at,scope,created_at) VALUES(?,?,?,?,?,?,?)')
+    .run(S.id('track'),t.id,o.id,digest(token),daysFromNow(365),'status',now());
+   store.audit(auth.a.id,'renew_tracking',t.id,'تجديد رابط متابعة '+o.number);
+  });
+  return {url:origin+'/track/'+token};
+ }
+
+ return {createQuote,publish,list,ownedDoc,version,staffDocument,renewDocumentLink,renewTrackingLink,publicDocument,publicAsset,quotePreview,accept,uploadEvidence,tracker,
    stageChange,deliveryGuard,startDelivery,readDelivery,saveDeliveryEvidence,completeDelivery,assets,CONSENT,STAGES,totalFor};
 }
 module.exports={createDocuments,totalFor,validLine,tiers,CONSENT,STAGES};
