@@ -33,6 +33,22 @@ for filename in ['brand.jpg','app-mark.svg','app-icon-192.png','app-icon-512.png
 # Keep commercial admin assets as build inputs, not transient files checked into public/.
 for filename in ['commercial.html','commercial.css','commercial.js']:
     shutil.copyfile(ROOT/'src'/filename,PUBLIC/filename)
+# Standalone, token-scoped public document shells and a secured staff editor.
+document_files = {
+    'document.html':'document.html',
+    'tracking.html':'tracking.html',
+    'manage.html':'documents.html',
+    'delivery.html':'delivery.html',
+    'document.css':'document.css',
+    'renderer.js':'document-renderer.js',
+    'page.js':'document-page.js',
+    'tracking-page.js':'tracking-page.js',
+    'manage.js':'document-manager.js',
+    'delivery-page.js':'delivery-page.js'
+}
+for src_name, target_name in document_files.items():
+    shutil.copyfile(ROOT/'src/documents'/src_name,PUBLIC/target_name)
+shutil.copyfile(ROOT/'src/qr.js',PUBLIC/'document-qr.js')
 shell=(ROOT/'src/shell.html').read_text(encoding='utf-8')
 shell=shell.replace('<style>/*__STYLES__*/</style>','<link rel="stylesheet" href="/'+css_name+'"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/svg+xml" href="/assets/app-mark.svg"><link rel="apple-touch-icon" href="/assets/app-icon-192.png">')
 shell=shell.replace('<script>/*__SCRIPTS__*/</script>','<script src="/'+js_name+'" defer></script>')
@@ -49,7 +65,7 @@ self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(c
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('wo-shell-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
  const req=event.request,url=new URL(req.url);
- if(req.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/'))return;
+ if(req.method!=='GET'||url.origin!==self.location.origin||url.pathname.startsWith('/api/')||url.pathname.startsWith('/d/')||url.pathname.startsWith('/track/'))return;
  if(req.mode==='navigate')event.respondWith(fetch(req).catch(()=>caches.match('/index.html')));
  else if(FILES.includes(url.pathname))event.respondWith(caches.match(req).then(hit=>hit||fetch(req)));
 });
