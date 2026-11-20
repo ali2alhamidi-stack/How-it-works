@@ -7,12 +7,12 @@ ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / 'public'
 PUBLIC.mkdir(exist_ok=True)
 (PUBLIC / 'assets').mkdir(exist_ok=True)
-SOURCES = ['catalog','qr','calculators','nesting','nesting-ui','model','inventory-engine','material-catalog','material-bindings','sync-core','command-capture','tab-lock','transport','connected-ui','platform-ui','inventory-ui','app']
+SOURCES = ['catalog','qr','calculators','nesting','nesting-ui','model','inventory-engine','material-catalog','material-bindings','sync-core','command-capture','tab-lock','transport','connected-ui','refined-login','platform-ui','inventory-ui','app']
 b64 = lambda name: base64.b64encode((ROOT / name).read_bytes()).decode()
 digest = lambda data: hashlib.sha256(data.encode()).hexdigest()[:16]
 def font_css(embedded):
     return '\n'.join('@font-face{font-family:Arabic;src:url(' + ('data:font/ttf;base64,' + b64('assets/Arabic-'+weight+'.ttf') if embedded else '/assets/Arabic-'+weight+'.ttf') + ') format("truetype");font-weight:'+str(number)+';font-display:swap;}' for weight,number in [('Regular',400),('Bold',700)])
-style = '\n'.join((ROOT / ('src/'+name)).read_text(encoding='utf-8') for name in ['styles.css','premium.css','awamer-identity.css'])
+style = '\n'.join((ROOT / ('src/'+name)).read_text(encoding='utf-8') for name in ['styles.css','premium.css','awamer-identity.css','awamer-refined.css'])
 modules = '\n;\n'.join((ROOT / ('src/'+name+'.js')).read_text(encoding='utf-8') for name in SOURCES)
 notices = (ROOT/'docs/THIRD_PARTY.md').read_text(encoding='utf-8')+'\n\n'+(ROOT/'assets/FONT-LICENSE.txt').read_text(encoding='utf-8')
 def js(mode, embedded=False):
