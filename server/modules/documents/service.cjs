@@ -422,16 +422,14 @@ function createDocuments({store,origin,mediaRoot,env=process.env}){
  }
 
  function staffDocument(auth,documentId){
-  const d=ownedDoc(auth,documentId,dummyPermission(deref(auth,documentId)));
+  const d=ownedDoc(auth,documentId);
   const v=version(d.id),snapshot=structuredClone(v.snapshot);
   if(d.type==='quote')requireActor(auth,'view_financials',d.branch_id);
   return {kind:d.type,documentId:d.id,version:v.version_no,hash:v.sha256,snapshot,
     ...(d.type==='quote'?{pricing:totalFor(snapshot,d.selected_tier||'standard'),consentText:CONSENT}:{}),status:d.status};
  }
- function dummyPermission(){return 'manage_orders';}
- function deref(){return null;}
  function renewDocumentLink(auth,documentId){
-  const d=ownedDoc(auth,documentId,dummyPermission());
+  const d=ownedDoc(auth,documentId);
   if(d.type==='quote')requireActor(auth,'view_financials',d.branch_id);
   if(!['published','accepted','completed'].includes(d.status))S.error(409,'DOCUMENT_LOCKED','المستند غير منشور');
   const v=version(d.id);
