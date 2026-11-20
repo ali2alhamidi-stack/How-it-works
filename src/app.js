@@ -123,7 +123,7 @@ function guideSteps(){
  {id:'branches',label:'تجهيز الفروع',desc:'حدد فرع تنفيذ كل طلب ومن المسؤول عنه',icon:'branch',go:'branches',ok:state.branches.length>0},
  {id:'team',label:'إضافة فريق العمل',desc:'أنشئ حسابات الموظفين وحدد الأدوار والصلاحيات',icon:'users',go:'employees',ok:state.users.some(x=>x.active&&x.role==='employee')},
  {id:'stock',label:'تسجيل الخامات',desc:'سجل الألواح والرولات والمقاسات وتكلفة كل خامة',icon:'inventory',go:'inventory',ok:state.materials.length>0},
- {id:'services',label:'إعداد سجل الخدمات',desc:'أضف خدمات مؤسستك وحدد وحدات البيع والأسعار قبل إنشاء الطلبات',icon:'grid',go:'catalog',ok:customServices().length>0||Object.keys(state.settings.servicePrices||{}).length>0},
+ {id:'services',label:'إعداد سجل الخدمات',desc:'من خطوات البداية: أضف خدمات مؤسستك وحدد وحدات البيع والأسعار قبل الطلبات',icon:'grid',go:'catalog',ok:customServices().length>0||Object.keys(state.settings.servicePrices||{}).length>0},
  {id:'clients',label:'إضافة أول عميل',desc:'حفظ بيانات العميل وربط طلباته بها',icon:'users',go:'clients',ok:state.clients.length>0},
  {id:'orders',label:'إنشاء أمر عمل',desc:'حدد الخدمة والموعد والملفات والمقاسات',icon:'orders',go:'newOrder',ok:state.orders.length>0},
  {id:'docs',label:'المستندات والتسليم',desc:'اطبع أمر العمل وعرض السعر ومحضر الاستلام',icon:'print',go:'documents',ok:state.orders.some(o=>o.status==='delivered')}
