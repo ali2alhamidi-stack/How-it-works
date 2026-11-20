@@ -1,3 +1,6 @@
+.sidebar-compact .app-shell{--sidebar:86px}
+.sidebar-compact .sidebar{width:var(--sidebar)}
+@media(max-width:760px){.sidebar-compact .app-shell{--sidebar:300px}.sidebar-compact .sidebar{width:min(88vw,330px)}}
 /* AWAMER Quiet Premium UI — elegant, low-weight RTL design.
    Scoped to product chrome; tenant-defined document colors remain untouched. */
 :root{
