@@ -7,7 +7,7 @@ const cp=require('node:child_process');
 const S=require('../../security.cjs');
 const R=require('../../../src/documents/renderer.js');
 let busy=false;
-function makePdf(view,{url,assets,env=process.env}={}){
+async function makePdf(view,{url,assets,tenantId,env=process.env}={}){
  if(busy)S.error(429,'PDF_BUSY','هناك ملف آخر قيد التجهيز، حاول مجددا');
  const chromium=env.AWAMER_CHROMIUM_PATH||'/usr/bin/chromium';
  if(!fs.existsSync(chromium))S.error(503,'PDF_UNAVAILABLE','محرك PDF لم يجهز على الخادم');
@@ -18,7 +18,7 @@ function makePdf(view,{url,assets,env=process.env}={}){
   const copy=structuredClone(view);
   for(const line of copy.snapshot.lines||[]){
    if(line.previewAssetId&&assets){
-    const file=assets.read(copy.snapshot.tenantId||copy.tenantId,line.previewAssetId);
+    const file=assets.read(tenantId,line.previewAssetId);
     line.previewUrl='data:'+file.mime+';base64,'+file.bytes.toString('base64');
    }
   }
@@ -31,8 +31,9 @@ function makePdf(view,{url,assets,env=process.env}={}){
   const input=path.join(temp,'input.html'),output=path.join(temp,'result.pdf');
   fs.writeFileSync(input,complete,{flag:'wx',mode:0o600});
   const runner=path.join(root,'services/pdf-worker/render.cjs');
-  const result=cp.spawnSync(process.execPath,[runner,input,output,chromium],{timeout:45000,maxBuffer:32768});
-  if(result.error||result.status!==0)S.error(503,'PDF_FAILED','تعذر إنشاء ملف PDF، حاول مجددا');
+  await new Promise((resolve,reject)=>{
+   cp.execFile(process.execPath,[runner,input,output,chromium],{timeout:45000,maxBuffer:32768},error=>error?reject(error):resolve());
+  }).catch(()=>S.error(503,'PDF_FAILED','تعذر إنشاء ملف PDF، حاول مجددا'));
   const bytes=fs.readFileSync(output);
   if(!bytes.subarray(0,5).equals(Buffer.from('%PDF-'))||bytes.length>15*1024*1024)S.error(500,'PDF_INVALID','ملف PDF الناتج غير صالح');
   return bytes;
