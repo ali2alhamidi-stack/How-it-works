@@ -2285,6 +2285,93 @@ return {templates,categories,sources,checkedAt:'2026-11-13',notice:'قوالب �
 })();
 
 ;
+/* Refined connected login, preserving the existing authentication API and validation. */
+(function(root){
+  'use strict';
+  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const icon=name=>'<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(root.WOCatalog?.icons?.[name]||root.WOCatalog?.icons?.grid||'')+'</svg>';
+  function login({error='',loading=false}={}){
+    const logo=esc(root.WO_ASSETS?.systemLogo||'/assets/awamer-logo.webp');
+    const steps=[
+      ['orders','استلام الطلب','جميع المتطلبات والمرفقات في مكان واحد'],
+      ['production','متابعة التنفيذ','المراحل والموظفون والمواعيد بوضوح'],
+      ['check','مراجعة وتسليم','الجودة والتسليم موثقان خطوة بخطوة']
+    ];
+    return `<div class="login-page central-login awamer-login-v4" dir="rtl">
+      <section class="login-form" aria-labelledby="awamer-login-title">
+        <div class="login-inner">
+          <div class="login-mini-head">
+            <div class="login-mini-brand"><img src="${logo}" alt="شعار أوامر"><span>أوامر</span></div>
+            <span class="login-secure-chip">${icon('shield')} حساب آمن</span>
+          </div>
+          <div class="login-overline">مساحة عملك اليومية</div>
+          <h1 id="awamer-login-title">أهلا بعودتك</h1>
+          <p class="login-description">ادخل إلى حسابك لمتابعة الأوامر والفريق والمراحل حسب صلاحياتك.</p>
+          ${error?`<div class="alert-box orange login-error" role="alert">${esc(error)}</div>`:''}
+          <form id="central-login-form" class="login-fields" autocomplete="on">
+            <div class="field">
+              <label for="central-email">البريد الإلكتروني</label>
+              <div class="login-input">${icon('users')}
+                <input id="central-email" type="email" name="email" dir="ltr" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="254" required placeholder="name@company.com">
+              </div>
+            </div>
+            <div class="field">
+              <label for="central-password">كلمة المرور</label>
+              <div class="login-input">${icon('shield')}
+                <input id="central-password" type="password" name="password" dir="ltr" autocomplete="current-password" minlength="10" maxlength="200" required placeholder="••••••••">
+                <button type="button" class="login-reveal" data-login-reveal aria-controls="central-password" aria-label="إظهار كلمة المرور" aria-pressed="false" title="إظهار أو إخفاء كلمة المرور">
+                  <span class="eye-open">${icon('eye')}</span><span class="eye-off">${icon('eyeOff')}</span>
+                </button>
+              </div>
+              <span id="login-caps-warning" class="login-caps-warning" role="status" hidden>${icon('alert')} مفتاح الأحرف الكبيرة Caps Lock مفعل</span>
+            </div>
+            <button class="btn primary full login-submit" type="submit" ${loading?'disabled':''}>${loading?'جار التحقق من الحساب...':'دخول إلى مساحة العمل'} ${icon('arrow')}</button>
+          </form>
+          <div class="login-inline-note">${icon('shield')}<span>تظهر لك الأقسام والبيانات المسموح بها فقط. لا تحفظ كلمات المرور داخل التطبيق.</span></div>
+          <p class="login-help">لا تستطيع الدخول؟ تواصل مع مدير منشأتك لإعادة تعيين كلمة المرور.</p>
+        </div>
+      </section>
+      <section class="login-brand" aria-label="تعريف مختصر بنظام أوامر">
+        <div>
+          <span class="login-hero-tag">${icon('grid')} AWAMER <span aria-hidden="true">·</span> نظام إدارة الأعمال</span>
+          <h2>شغلك واضح.<br>وفريقك على نفس الخطوة.</h2>
+          <p>من أول طلب وحتى التسليم، تفاصيل التشغيل مرتبة ومتابعتها أسهل من أي وقت.</p>
+          <div class="login-workflow">${steps.map(([ic,title,desc])=>`<div class="login-workflow-step"><span class="work-icon">${icon(ic)}</span><div><strong>${title}</strong><small>${desc}</small></div></div>`).join('')}</div>
+          <div class="login-brand-foot">واجهة واحدة للإدارة والموظفين على الجوال والكمبيوتر</div>
+        </div>
+      </section>
+    </div>`;
+  }
+  if(root.WOConnectedUI)root.WOConnectedUI.login=login;
+  if(typeof module==='object'&&module.exports)module.exports={login};
+  if(typeof document==='undefined')return;
+  const app=document.getElementById('app');
+  if(!app)return;
+  app.addEventListener('click',event=>{
+    const control=event.target.closest?.('[data-login-reveal]');
+    if(!control||!app.contains(control))return;
+    const input=app.querySelector('#central-password');
+    if(!input)return;
+    const visible=input.type==='password';
+    input.type=visible?'text':'password';
+    control.setAttribute('aria-pressed',String(visible));
+    control.setAttribute('aria-label',visible?'إخفاء كلمة المرور':'إظهار كلمة المرور');
+    input.focus({preventScroll:true});
+  });
+  app.addEventListener('keydown',event=>{
+    if(event.target?.id!=='central-password')return;
+    const hint=app.querySelector('#login-caps-warning');
+    if(hint&&typeof event.getModifierState==='function')hint.hidden=!event.getModifierState('CapsLock');
+  });
+  app.addEventListener('focusout',event=>{
+    if(event.target?.id==='central-password'){
+      const hint=app.querySelector('#login-caps-warning');
+      if(hint)hint.hidden=true;
+    }
+  });
+})(globalThis);
+
+;
 /* Qodynex platform console. Server-authoritative; no demo tenants or credential storage. */
 (function (root, factory) {
   const api = factory();
@@ -2515,7 +2602,7 @@ const UI={sidebarCollapsed:false,branch:session.branch||'all',query:'',status:'a
 let actorId=session.userId||'',toastTimer,draftTimer,searchTimer;
 try{UI.sidebarCollapsed=localStorage.getItem('awamer-sidebar-compact')==='1';}catch(e){}
 const NAV=[['home','الرئيسية','home'],['guide','ابدأ هنا','check'],['documents','المستندات والطباعة','print'],['orders','أوامر العمل','orders'],['proofs','اعتمادات العملاء','check'],['production','خط الإنتاج','production'],['myWork','مهامي وإنجازي','check'],['catalog','الخدمات والمنتجات','grid'],['calculators','الحاسبات والتسعير','calculator'],['nesting','تخطيط القص والبواقي','scissors'],['inventory','المخزون والبواقي','inventory'],['purchases','المشتريات','purchase'],['clients','العملاء','users'],['employees','الفريق والأداء','users'],['branches','الفروع','branch'],['reviews','تقييمات العملاء','review'],['reports','التقارير','chart'],['activity','سجل العمليات','clock'],...(CONNECTED?[['sync','المزامنة والجهاز','refresh'],['account','حسابي والجهاز','shield']]:[]),['settings','الإعدادات والهوية','settings']];
-const COLORS={guide:'#C89A39',documents:'#087F88',nesting:'#0e9b93',proofs:'#c49b42',home:'#8b60d1',orders:'#8354cb',production:'#19b6b4',myWork:'#5096e8',catalog:'#5d91e5',calculators:'#f0a04f',inventory:'#f09c50',purchases:'#5c9be8',clients:'#d879ac',employees:'#ce78a2',branches:'#7487df',reviews:'#e7b24b',reports:'#55b894',settings:'#8b8fa2',activity:'#6babb9'};
+const COLORS={guide:'#a88850',documents:'#3d8782',nesting:'#397f79',proofs:'#bc965b',home:'#477889',orders:'#397c90',production:'#0f817c',myWork:'#478fa1',catalog:'#62869c',calculators:'#a78350',inventory:'#aa8b59',purchases:'#6d8caa',clients:'#558c86',employees:'#5a8b9e',branches:'#667c94',reviews:'#b28b55',reports:'#3c9282',settings:'#6f838e',activity:'#769a9e'};
 const STAGES=[['draft','مسودة','gray'],['approval','اعتماد التصميم','orange'],['queued','جاهز للتنفيذ','purple'],['production','قيد التنفيذ','teal'],['quality','فحص الجودة','blue'],['ready','جاهز للتسليم','green'],['delivered','تم التسليم','green'],['cancelled','ملغي','red']];
 const actor=()=>state.users.find(u=>u.id===actorId&&u.active!==false);
 const perm=(p,b)=>!!actor()&&M.can(state,actorId,p,b);
@@ -2621,8 +2708,8 @@ function documentsView(){
  <div class="awamer-document-templates">${[['أمر عمل','المقاسات والتفاصيل والفريق','orders'],['عرض سعر','سعر البيع دون التكلفة الداخلية','chart'],['محضر تسليم','استلام وتوقيع الطرفين','check'],['بيان تكلفة','تقرير للإدارة المالية فقط','calculator']].map(([n,d,icon])=>`<div class="awamer-template-card">${ico(icon)}<strong>${n}</strong><small>${d}</small></div>`).join('')}</div>
  <section class="card mt"><div class="card-head"><h2>اختر أمر العمل</h2><p>تظهر سجلات الفروع المصرح بها</p></div><div class="awamer-documents-list">${list.length?list.map(o=>`<div class="awamer-doc-row"><div><b>${esc(o.title)}</b><small>${esc(o.number)} · ${esc(client(o.clientId)?.name||'عميل')} · ${esc(bname(o.branchId))}</small></div><div class="row wrap">${btn('أمر عمل','print-order','sm','data-id="'+o.id+'"','print')}${hasFinance?btn('عرض سعر','print-quote','sm','data-id="'+o.id+'"','chart'):''}${btn('محضر تسليم','print-delivery','sm','data-id="'+o.id+'"','check')}${hasFinance?btn('بيان تكلفة','print-cost-summary','sm','data-id="'+o.id+'"','calculator'):''}</div></div>`).join(''):'<p class="muted">أنشئ أول أمر عمل ليظهر هنا.</p>'}</div></section><p class="field-note mt">عرض السعر ليس فاتورة ضريبية، وبيانات التكاليف متاحة لأصحاب الصلاحية المالية فقط.</p>`;
 }
-function homeView(){const os=orders(),active=os.filter(o=>!['delivered','cancelled'].includes(o.status)),late=os.filter(isLate),ready=os.filter(o=>o.status==='ready'),done=os.filter(o=>o.status==='delivered');const nearest=active.slice().sort((a,b)=>new Date(a.dueAt)-new Date(b.dueAt)).slice(0,5);const quick=NAV.filter(([id])=>['orders','guide','documents','proofs','production','inventory','calculators','nesting','purchases','employees','reviews','reports'].includes(id)&&canRoute(id));const deliveredPct=os.length?Math.round(done.length/os.length*100):0;
- return `${guideBanner()}<div class="hero"><div><div class="greeting">أهلا ${esc(actor().name.split(' ')[0])}، يوم جديد وإنجاز جديد</div><h1>متابعة أعمالك تبدأ من هنا</h1><p>${active.length} أمر عمل جار في ${UI.branch==='all'?allowedBranches().length+' فروع':esc(bname(UI.branch))}. تابع الأولويات ووزع العمل ووثق كل مرحلة.</p>${perm('manage_orders')?btn('أمر عمل جديد','navigate','','data-to="newOrder"','plus'):btn('عرض مهامي','navigate','','data-to="myWork"','orders')}</div><div class="hero-art"><div class="hero-circle"><div><b>${deliveredPct}%</b><small>أوامر تم تسليمها</small></div></div><div class="hero-float">${ico('orders')}</div><div class="hero-float top">${ico('check')}</div></div></div>${statsView([['أوامر العمل',os.length,'orders','#8b60d1','كل مراحل التشغيل'],['قيد التنفيذ',os.filter(o=>o.status==='production').length,'production','#19b6b4','شغل يتحرك الآن'],['جاهز للتسليم',ready.length,'package','#55b894','بانتظار العميل'],['طلبات متأخرة',late.length,'clock','#ed9450','تحتاج إلى متابعة']])}<div class="section-label"><h2>أقسام مساحة العمل</h2><span class="tiny muted">كل قسم بمكانه</span></div><div class="launcher">${quick.map(([id,label,icon])=>`<button class="launch" data-action="navigate" data-to="${id}">${appico(icon,COLORS[id])}<span>${label}</span></button>`).join('')}</div><div class="grid main-side mt"><section class="card"><div class="card-head"><div><h2>الأولوية في التسليم</h2><p>الأقرب موعدا، مع حالة كل طلب</p></div><a class="tiny" href="#/orders">كل الأوامر ←</a></div>${orderTable(nearest,false)}</section><div class="stack"><section class="card"><div class="card-head"><h2>بانتظار المتابعة</h2>${ico('bell')}</div>${attentionList()}</section><section class="card"><div class="card-head"><h2>حركة الإنتاج</h2><a class="tiny" href="#/${canRoute('production')?'production':'myWork'}">عرض</a></div><div class="budget-list">${[['approval','اعتماد التصميم','#f0a04f'],['queued','جاهز للتنفيذ','#8b60d1'],['production','قيد التنفيذ','#19b6b4'],['quality','الجودة','#5096e8']].map(([s,l,col])=>{const n=os.filter(o=>o.status===s).length;return `<div class="budget-line"><span>${l}</span><div class="progress"><span style="width:${os.length?n/os.length*100:0}%;background:${col}"></span></div><b>${n} أوامر</b></div>`;}).join('')}</div></section></div></div>`;}
+function homeView(){const os=orders(),active=os.filter(o=>!['delivered','cancelled'].includes(o.status)),late=os.filter(isLate),ready=os.filter(o=>o.status==='ready'),done=os.filter(o=>o.status==='delivered');const nearest=active.slice().sort((a,b)=>new Date(a.dueAt)-new Date(b.dueAt)).slice(0,5);const quick=NAV.filter(([id])=>['orders','guide','documents','proofs','production','inventory','calculators','nesting','purchases','employees','reviews','reports'].includes(id)&&canRoute(id));const deliveredPct=os.length?Math.round(done.length/os.length*100):0;const quickHelp={guide:'خطوات تهيئة النظام',orders:'الطلبات ومراحلها',documents:'عروض وتسليم وطباعة',proofs:'موافقات التصاميم',production:'تنفيذ ومتابعة الأعمال',inventory:'حركة المواد والبواقي',calculators:'تسعير ومقاسات',nesting:'قص الألواح والخامات',purchases:'الطلبات والتوريد',employees:'الفريق والمهام',reviews:'آراء العملاء',reports:'متابعة الأداء والتكلفة'};
+ return `${guideBanner()}<div class="hero"><div><div class="greeting">أهلا ${esc(actor().name.split(' ')[0])}، يوم جديد وإنجاز جديد</div><h1>متابعة أعمالك تبدأ من هنا</h1><p>${active.length} أمر عمل جار في ${UI.branch==='all'?allowedBranches().length+' فروع':esc(bname(UI.branch))}. تابع الأولويات ووزع العمل ووثق كل مرحلة.</p>${perm('manage_orders')?btn('أمر عمل جديد','navigate','','data-to="newOrder"','plus'):btn('عرض مهامي','navigate','','data-to="myWork"','orders')}</div><div class="hero-art"><div class="hero-circle"><div><b>${deliveredPct}%</b><small>أوامر تم تسليمها</small></div></div><div class="hero-float">${ico('orders')}</div><div class="hero-float top">${ico('check')}</div></div></div>${statsView([['أوامر العمل',os.length,'orders','#8b60d1','كل مراحل التشغيل'],['قيد التنفيذ',os.filter(o=>o.status==='production').length,'production','#19b6b4','شغل يتحرك الآن'],['جاهز للتسليم',ready.length,'package','#55b894','بانتظار العميل'],['طلبات متأخرة',late.length,'clock','#ed9450','تحتاج إلى متابعة']])}<div class="section-label"><h2>أقسام مساحة العمل</h2><span class="tiny muted">كل قسم بمكانه</span></div><div class="launcher">${quick.map(([id,label,icon])=>`<button class="launch" data-action="navigate" data-to="${id}" title="فتح ${esc(label)}">${appico(icon,COLORS[id])}<span class="launch-copy"><b>${label}</b><small>${esc(quickHelp[id]||"فتح القسم")}</small></span>${ico("arrow","sm")}</button>`).join('')}</div><div class="grid main-side mt"><section class="card"><div class="card-head"><div><h2>الأولوية في التسليم</h2><p>الأقرب موعدا، مع حالة كل طلب</p></div><a class="tiny" href="#/orders">كل الأوامر ←</a></div>${orderTable(nearest,false)}</section><div class="stack"><section class="card"><div class="card-head"><h2>بانتظار المتابعة</h2>${ico('bell')}</div>${attentionList()}</section><section class="card"><div class="card-head"><h2>حركة الإنتاج</h2><a class="tiny" href="#/${canRoute('production')?'production':'myWork'}">عرض</a></div><div class="budget-list">${[['approval','اعتماد التصميم','#f0a04f'],['queued','جاهز للتنفيذ','#8b60d1'],['production','قيد التنفيذ','#19b6b4'],['quality','الجودة','#5096e8']].map(([s,l,col])=>{const n=os.filter(o=>o.status===s).length;return `<div class="budget-line"><span>${l}</span><div class="progress"><span style="width:${os.length?n/os.length*100:0}%;background:${col}"></span></div><b>${n} أوامر</b></div>`;}).join('')}</div></section></div></div>`;}
 function attentionList(){const pending=scoped(state.purchases).filter(p=>p.status==='requested');const low=scoped(state.materials).filter(m=>m.quantity<=m.minQuantity);const overdue=orders().filter(isLate);let html='';if(pending.length&&canRoute('purchases'))html+=`<a class="mini-row" href="#/purchases">${appico('purchase','#ed9450',true)}<div class="grow"><h4>${pending.length} طلبات شراء</h4><p>تنتظر اعتماد المدير</p></div>${ico('arrow','sm')}</a>`;if(low.length&&canRoute('inventory'))html+=`<a class="mini-row" href="#/inventory">${appico('inventory','#dc6c81',true)}<div class="grow"><h4>${low.length} خامات منخفضة</h4><p>راجع الكميات قبل التنفيذ</p></div>${ico('arrow','sm')}</a>`;if(overdue.length)html+=`<a class="mini-row" href="#/orders">${appico('clock','#8b60d1',true)}<div class="grow"><h4>${overdue.length} أوامر تجاوزت موعدها</h4><p>راجع الوقت وتوزيع الفريق</p></div>${ico('arrow','sm')}</a>`;return html||'<div class="tiny muted">لا توجد تنبيهات حالية في هذا النطاق.</div>';}
 function notificationsView(){return `<div class="card notification-list"><div class="card-head"><h2>تنبيهات التشغيل</h2><button class="icon-btn" data-action="notifications" aria-label="إغلاق">${ico('close','sm')}</button></div>${attentionList()}<div class="tiny muted mt">تنبيهات محلية من العمليات المسجلة في هذه النسخة.</div></div>`;}
 function orderTable(items,withPrice=true){if(!items.length)return empty('لا توجد أوامر في هذا العرض','غير التصفية أو أنشئ أول أمر عمل','orders');return `<div class="table-wrap"><table class="data-table"><thead><tr><th>أمر العمل</th><th>العميل</th><th>الحالة</th><th>التسليم</th><th>الفريق</th>${withPrice&&financial()?'<th>البيع</th>':''}<th></th></tr></thead><tbody>${items.map(o=>`<tr><td><a class="order-link" href="#/order/${o.id}">#${esc(o.number)}</a><span class="subline">${esc(o.title)}</span></td><td>${esc(client(o.clientId)?.name||'عميل مباشر')}<span class="subline">${esc(bname(o.branchId))}</span></td><td>${statusTag(o.status)}</td><td class="${isLate(o)?'overdue':''}">${day(o.dueAt)}${isLate(o)?'<span class="subline" style="color:var(--red)">متأخر</span>':''}</td><td>${teamAvatars(o)}</td>${withPrice&&financial()?`<td>${money(o.salePrice)}</td>`:''}<td><a class="icon-btn" href="#/order/${o.id}" aria-label="تفاصيل أمر ${esc(o.number)}">${ico('arrow','sm')}</a></td></tr>`).join('')}</tbody></table></div>`;}

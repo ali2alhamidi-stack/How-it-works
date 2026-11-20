@@ -7,12 +7,12 @@ ROOT = Path(__file__).resolve().parent
 PUBLIC = ROOT / 'public'
 PUBLIC.mkdir(exist_ok=True)
 (PUBLIC / 'assets').mkdir(exist_ok=True)
-SOURCES = ['catalog','qr','calculators','nesting','nesting-ui','model','inventory-engine','material-catalog','material-bindings','sync-core','command-capture','tab-lock','transport','connected-ui','platform-ui','inventory-ui','app']
+SOURCES = ['catalog','qr','calculators','nesting','nesting-ui','model','inventory-engine','material-catalog','material-bindings','sync-core','command-capture','tab-lock','transport','connected-ui','refined-login','platform-ui','inventory-ui','app']
 b64 = lambda name: base64.b64encode((ROOT / name).read_bytes()).decode()
 digest = lambda data: hashlib.sha256(data.encode()).hexdigest()[:16]
 def font_css(embedded):
     return '\n'.join('@font-face{font-family:Arabic;src:url(' + ('data:font/ttf;base64,' + b64('assets/Arabic-'+weight+'.ttf') if embedded else '/assets/Arabic-'+weight+'.ttf') + ') format("truetype");font-weight:'+str(number)+';font-display:swap;}' for weight,number in [('Regular',400),('Bold',700)])
-style = '\n'.join((ROOT / ('src/'+name)).read_text(encoding='utf-8') for name in ['styles.css','premium.css','awamer-identity.css'])
+style = '\n'.join((ROOT / ('src/'+name)).read_text(encoding='utf-8') for name in ['styles.css','premium.css','awamer-identity.css','awamer-refined.css'])
 modules = '\n;\n'.join((ROOT / ('src/'+name+'.js')).read_text(encoding='utf-8') for name in SOURCES)
 notices = (ROOT/'docs/THIRD_PARTY.md').read_text(encoding='utf-8')+'\n\n'+(ROOT/'assets/FONT-LICENSE.txt').read_text(encoding='utf-8')
 def js(mode, embedded=False):
@@ -37,7 +37,7 @@ shell=(ROOT/'src/shell.html').read_text(encoding='utf-8')
 shell=shell.replace('<style>/*__STYLES__*/</style>','<link rel="stylesheet" href="/'+css_name+'"><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" type="image/svg+xml" href="/assets/app-mark.svg"><link rel="apple-touch-icon" href="/assets/app-icon-192.png">')
 shell=shell.replace('<script>/*__SCRIPTS__*/</script>','<script src="/'+js_name+'" defer></script>')
 (PUBLIC/'index.html').write_text(shell,encoding='utf-8',newline='\n');(PUBLIC/'third-party.txt').write_text(notices,encoding='utf-8',newline='\n')
-manifest={'id':'/','name':'نظام أوامر العمل والتشغيل','short_name':'أوامر','lang':'ar','dir':'rtl','description':'إدارة الإنتاج والفروع والخامات وفريق العمل للدعاية والإعلان','start_url':'/#/home','scope':'/','display':'standalone','background_color':'#f3f6f8','theme_color':'#073454','icons':[{'src':'/assets/app-icon-'+str(n)+'.png','sizes':str(n)+'x'+str(n),'type':'image/png','purpose':'any maskable'} for n in [192,512]],'shortcuts':[{'name':'أوامر العمل','url':'/#/orders'},{'name':'مهامي','url':'/#/myWork'}]}
+manifest={'id':'/','name':'نظام أوامر العمل والتشغيل','short_name':'أوامر','lang':'ar','dir':'rtl','description':'إدارة الإنتاج والفروع والخامات وفريق العمل للدعاية والإعلان','start_url':'/#/home','scope':'/','display':'standalone','background_color':'#f5f7f7','theme_color':'#173e4a','icons':[{'src':'/assets/app-icon-'+str(n)+'.png','sizes':str(n)+'x'+str(n),'type':'image/png','purpose':'any maskable'} for n in [192,512]],'shortcuts':[{'name':'أوامر العمل','url':'/#/orders'},{'name':'مهامي','url':'/#/myWork'}]}
 (PUBLIC/'manifest.webmanifest').write_text(json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8',newline='\n')
 cache_version=digest(central_js+central_css)
 files=['/','/index.html','/'+js_name,'/'+css_name,'/manifest.webmanifest']+['/assets/'+p.name for p in sorted((PUBLIC/'assets').iterdir()) if p.is_file()]
