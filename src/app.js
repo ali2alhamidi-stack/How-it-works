@@ -89,7 +89,7 @@ function requirePerm(p,b){if(!perm(p,b))throw new Error('لا تملك صلاح�
 function theme(){document.documentElement.style.setProperty('--primary','#073454');document.documentElement.style.setProperty('--primary-rgb','7,52,84');document.documentElement.style.setProperty('--primary-light','#e7eef1');document.documentElement.style.setProperty('--secondary','#087f88');document.title=state.brand.name+' | أوامر';}
 function safeDecode(value){try{return decodeURIComponent(value);}catch(e){return '';}}
 function route(){const raw=location.hash.replace(/^#\/?/,'');const [path,q='']=raw.split('?');const parts=path.split('/');return {name:parts[0]||'home',id:safeDecode(parts[1]||''),params:new URLSearchParams(q)};}
-function go(path){UI.query='';UI.menu=false;UI.notifications=false;const next='#/'+path;if(location.hash===next)render();else location.hash=next;window.scrollTo(0,0);}
+function go(path){if(path.startsWith('newOrder')&&route().name!=='newOrder')UI.orderWizardStep=0;UI.query='';UI.menu=false;UI.notifications=false;const next='#/'+path;if(location.hash===next)render();else location.hash=next;window.scrollTo(0,0);}
 function title(text,sub='',actions=''){return `<div class="page-title between"><div><div class="eyebrow">نظام أوامر العمل والتشغيل</div><h1>${esc(text)}</h1>${sub?`<p>${esc(sub)}</p>`:''}</div><div class="row wrap">${actions}</div></div>`;}
 function btn(text,action,cls='',data='',icon=''){return `<button type="button" class="btn ${cls}" data-action="${action}" ${data}>${icon?ico(icon):''}<span class="label">${text}</span></button>`;}
 const empty=(heading,text='',icon='package')=>`<div class="empty">${appico(icon,'#aa9ac9',true)}<h3>${esc(heading)}</h3><p>${esc(text)}</p></div>`;
@@ -109,7 +109,7 @@ function render(){theme();document.body.classList.toggle('sidebar-compact',!!UI.
  let view='';try{if(!canRoute(r.name)){view=title('هذه الصفحة خارج صلاحياتك')+empty('لا توجد صلاحية','يمكنك الرجوع إلى مهامك أو التواصل مع مدير النظام','shield');}else{view=({home:homeView,guide:guideView,documents:documentsView,orders:ordersView,proofs:proofsView,order:()=>orderView(r.id),newOrder:()=>orderForm(r.id),production:productionView,catalog:catalogView,calculators:calculatorsView,inventory:inventoryView,purchases:purchasesView,employees:employeesView,employee:()=>employeeView(r.id),branches:branchesView,clients:clientsView,reviews:reviewsView,reports:reportsView,settings:settingsView,activity:activityView,nesting:()=>WONestingUI.view(nestingContext()),sync:()=>WOConnectedUI.sync(WOTransport.queueInfo()),myWork:myWorkView,account:()=>WOConnectedUI.accountPage({account:centralAccount,tenant:centralTenant,role:roleLabel(actor().role)})}[r.name]||homeView)();}}catch(e){console.error(e);view=formatErrorPage(e);}
  const nav=NAV.filter(([id])=>canRoute(id)&&(id!=='myWork'||actor().role==='employee'));
  $('#app').innerHTML=`<div class="app-shell"><div class="backdrop ${UI.menu?'open':''}" data-action="menu-close"></div><aside class="sidebar ${UI.menu?'open':''}"><a class="brand awamer-identity" href="#/home"><img src="${WO_ASSETS.systemLogo||WO_ASSETS.logo}" alt="أوامر"><div><div class="brand-name">أوامر</div><div class="brand-sub">نظام العمل والتشغيل</div></div></a><div class="nav-label">مساحة العمل</div><button class="sidebar-toggle" type="button" data-action="sidebar-toggle" aria-label="طي أو توسيع الشريط الجانبي" title="طي أو توسيع القائمة">${ico("menu")}<span>طي الشريط الجانبي</span></button><nav class="nav" aria-label="أقسام تطبيق أوامر">${sidebarNav(nav,r.name)}</nav><div class="sidebar-foot"><div class="between"><span class="local-tag"><span class="dot"></span> ${CONNECTED?(WOTransport.queueInfo().count?'عمليات بانتظار المزامنة':WOTransport.queueInfo().online?'بيانات المنشأة متصلة':'نسخة محفوظة على الجهاز'):'حفظ محلي على هذا الجهاز'}</span><button class="icon-btn" data-action="theme" aria-label="تبديل المظهر">${ico('moon','sm')}</button></div><div class="tiny muted mt">${CONNECTED?'إصدار 2.0 · حساب منشأة':'نسخة عرض محلية · بيانات توضيحية'}</div></div></aside><main class="main"><header class="topbar"><button class="icon-btn mobile-menu-btn" data-action="menu" aria-label="القائمة">${ico('menu')}</button><a class="brand" href="#/home"><img src="${WO_ASSETS.systemLogo||WO_ASSETS.logo}" alt="أوامر"><div><div class="brand-name">أوامر</div><div class="brand-sub">${esc(state.brand.name)}</div></div></a><div class="top-search">${ico('search','sm')}<input data-search="global" aria-label="بحث في أوامر العمل" placeholder="ابحث عن أمر عمل أو عميل…"><span class="shortcut-key">/</span></div><div class="row"><select class="branch-select" data-branch aria-label="اختيار الفرع">${branchOptions()}</select>${CONNECTED?`<button class="icon-btn" data-action="central-refresh" aria-label="تحديث بيانات المنشأة">${ico('refresh','sm')}</button>`:''}<button class="icon-btn desktop-theme" data-action="theme" aria-label="الوضع الليلي">${ico('moon','sm')}</button><button class="icon-btn" data-action="notifications" aria-label="التنبيهات">${ico('bell','sm')}<span class="notification-dot"></span></button><button class="profile-btn row" data-action="${CONNECTED?'navigate':'switch-user'}" ${CONNECTED?'data-to="account"':''} aria-label="${CONNECTED?'حسابي والجهاز':'تبديل حساب العرض'}">${avatar(actorId)}<div class="user-label"><div class="strong tiny">${esc(actor().name)}</div><div class="tiny muted">${roleLabel(actor().role)}</div></div></button></div>${UI.notifications?notificationsView():''}</header><div class="content fade-in"><div class="mobile-only mobile-branch"><select data-branch aria-label="اختيار الفرع">${branchOptions()}</select><span class="local-tag"><span class="dot"></span> ${CONNECTED?(WOTransport.queueInfo().count?'بانتظار المزامنة':WOTransport.queueInfo().online?'حساب متصل':'دون اتصال'):'محفوظ على جهازك'}</span></div>${loadError?alertBox(esc(loadError),'orange'):''}${CONNECTED&&WOTransport.queueInfo().readOnly?`<div class="alert-box orange mb">${ico('shield')}<div><b>هذا التبويب للقراءة فقط</b><p class="tiny mt">${esc(WOTransport.queueInfo().readOnlyReason)}</p><button class="btn sm mt" data-action="central-reload">إعادة فتح التبويب</button></div></div>`:''}${CONNECTED&&WOTransport.queueInfo().count?`<a href="#/sync" class="alert-box ${WOTransport.queueInfo().blocked?'orange':'teal'} mb">${ico('refresh')}<span>${WOTransport.queueInfo().count} عملية ${WOTransport.queueInfo().blocked?'تحتاج مراجعتك':'بانتظار تأكيد الخادم'} — فتح المزامنة</span></a>`:''}${view}<footer class="page-footnote">${esc(state.brand.footer||'كل أمر واضح. كل مرحلة موثقة.')} · ${esc(bname(UI.branch)==='غير محدد'?'جميع الفروع':bname(UI.branch))}</footer></div></main><nav class="mobile-nav" aria-label="اختصارات الهاتف">${mobileNav(r.name)}</nav></div>`;
- if(r.name==='purchases')updatePurchasePreview();if(r.name==='calculators')updateCalcResult();if(r.name==='nesting')WONestingUI.bind(nestingContext());if(r.name==='reviews')renderQR();if(r.name==='newOrder')bindOrderForm();if(r.name==='settings'&&UI.settingsTab==='brand')bindBrandPreview();}
+ if(r.name==='purchases')updatePurchasePreview();if(r.name==='calculators')updateCalcResult();if(r.name==='nesting')WONestingUI.bind(nestingContext());if(r.name==='reviews')renderQR();if(r.name==='newOrder'){bindOrderForm();initOrderWizard();}if(r.name==='settings'&&UI.settingsTab==='brand')bindBrandPreview();}
 function roleLabel(role){return {owner:'مالك النظام',manager:'مدير الفرع',employee:'موظف التشغيل',purchasing:'مسؤول المشتريات'}[role]||role;}
 function branchOptions(){return (perm('view_all_branches')?`<option value="all" ${UI.branch==='all'?'selected':''}>جميع الفروع</option>`:'')+allowedBranches().map(b=>`<option value="${b.id}" ${UI.branch===b.id?'selected':''}>${esc(b.name)}</option>`).join('');}
 function renderLogin(){if(CONNECTED){$('#app').innerHTML=WOConnectedUI.login({error:centralError});return;}const roles=[['owner','الإدارة الكاملة','الفروع، الصلاحيات، الأسعار والتقارير','shield','#8354cb'],['manager1','بوابة مدير الفرع','متابعة تشغيل الفرع واعتماد الأعمال','branch','#19b6b4'],['emp1','بوابة الموظف','المهام المسندة والوقت والإنجاز','users','#5096e8'],['buyer','بوابة المشتريات','طلبات الشراء والتوريد والاستلام','purchase','#f0a04f']];$('#app').innerHTML=`<div class="login-page"><section class="login-brand"><div><img src="${logo()}" class="brand-logo" alt="${esc(state.brand.name)}"><h1>كل شغلك.<br>من الفكرة إلى التسليم.</h1><p>مساحة واحدة لأوامر العمل والفروع والموظفين والخامات، مصممة لتفاصيل الدعاية والإعلان.</p><div class="login-icons">${['orders','production','scissors','lightbulb','inventory','users','chart','review'].map((n,i)=>appico(n,Object.values(COLORS)[i])).join('')}</div></div></section><section class="login-form"><div class="login-inner"><div class="eyebrow">${esc(state.brand.name)}</div><h2>أهلا بك في مساحة العمل</h2><p class="muted tiny">اختر بوابة لتجربة النظام بصلاحيات مختلفة.</p><div class="role-options">${roles.filter(x=>state.users.some(u=>u.id===x[0])).map(([id,t,d,ic,col])=>`<button class="role-card" data-action="login" data-user="${id}">${appico(ic,col)}<div class="grow"><h3>${t}</h3><p>${d}</p></div>${ico('arrow')}</button>`).join('')}</div><div class="field mt"><label for="demo-user-select">تجربة حساب آخر أو موظف جديد</label><div class="row"><select id="demo-user-select">${state.users.filter(u=>u.active!==false).map(u=>`<option value="${u.id}">${esc(u.name)} — ${roleLabel(u.role)}</option>`).join('')}</select>${btn('دخول','login-selected','soft','','arrow')}</div></div><div class="login-note">هذه بوابات عرض محلية ببيانات توضيحية. العمليات تحفظ في هذا المتصفح. المصادقة الآمنة وربط الأجهزة والفروع عبر الخادم هما مرحلة التكامل التالية.</div><div class="tiny muted text-center mt">نظام أوامر العمل والتشغيل · 1.0</div></div></section></div>`;}
@@ -175,6 +175,63 @@ function teamPicker(members,team,defaultDueAt){return members.map(u=>{const a=te
 function readTeam(form){return $$('[data-team-user]:checked',form).map(el=>({userId:el.dataset.teamUser,share:Number($(`[data-team-share="${el.dataset.teamUser}"]`,form).value),plannedMinutes:Number($(`[data-team-time="${el.dataset.teamUser}"]`,form).value),actualMinutes:0,done:false,completedAt:null,dueAt:dateToISO($(`[data-team-due="${el.dataset.teamUser}"]`,form)?.value||form.elements.dueAt.value)}));}
 function dateToISO(value){if(!value)return '';const stamp=new Date(value);if(!Number.isFinite(stamp.getTime()))throw new Error('اختر موعدا صالحا');return stamp.toISOString();}
 function orderDraft(form){const v=values(form);v.dueAt=dateToISO(v.dueAt);v.assignees=readTeam(form);v.designDataUrl=UI.formImage;return v;}
+
+function initOrderWizard(){
+ const f=$('#order-form');
+ if(!f||typeof f.querySelector!=='function'||typeof document.createElement!=='function'||f.dataset.awamerWizard==='1')return;
+ const grid=f.querySelector('.grid.main-side'),main=grid?.querySelector('.stack'),aside=grid?.querySelector('aside.stack');
+ if(!grid||!main||!aside||typeof main.querySelectorAll!=='function')return;
+ const sections=Array.from(main.querySelectorAll(':scope > section.card'));
+ if(sections.length<3)return;
+ [sections[0],sections[1],sections[2],aside].forEach((section,index)=>section.dataset.orderStep=String(index));
+ grid.classList.add('awamer-order-wizard-layout');
+ const progress=document.createElement('section');
+ progress.className='awamer-order-wizard-nav';
+ const labels=['العميل والخدمة','المقاسات والخامات','فريق التنفيذ','المرفقات والمراجعة'];
+ progress.innerHTML='<div class="awamer-wizard-head"><h2>إنشاء أمر عمل بخطوات واضحة</h2><span id="awamer-wizard-counter">الخطوة 1 من 4</span></div>'+
+  '<div class="awamer-order-steps">'+labels.map((label,index)=>
+   '<button type="button" data-action="wizard-step" data-step="'+index+'" aria-label="'+label+'"><span>'+(index+1)+'</span>'+label+'</button>').join('')+'</div>'+
+  '<div class="awamer-wizard-track" role="progressbar" aria-valuemin="0" aria-valuemax="4" aria-valuenow="1" aria-label="تقدم إدخال أمر العمل"><span id="awamer-wizard-progress"></span></div>';
+ f.insertBefore(progress,grid);
+ const footer=document.createElement('div');
+ footer.className='awamer-wizard-footer';
+ footer.innerHTML='<button type="button" class="btn" data-action="wizard-previous">'+ico('arrow')+' السابق</button>'+
+  (!f.dataset.orderId?'<button type="button" class="btn soft" data-action="wizard-save-draft">'+ico('save')+' حفظ مسودة</button>':'')+
+  '<button type="button" class="btn primary" data-action="wizard-next">التالي '+ico('arrow')+'</button>';
+ f.appendChild(footer);
+ f.dataset.awamerWizard='1';
+ showOrderWizardStep(UI.orderWizardStep,false);
+}
+function showOrderWizardStep(next,validate=true){
+ const form=$('#order-form');
+ if(!form||form.dataset.awamerWizard!=='1')return false;
+ const target=Math.min(3,Math.max(0,Number(next)||0));
+ const current=Number(form.dataset.activeStep||0);
+ if(target>current&&validate){
+  if(target>current+1)return false;
+  const page=form.querySelector('[data-order-step="'+current+'"]');
+  for(const field of page?.querySelectorAll('input[required],select[required],textarea[required]')||[]){
+   if(!field.disabled&&typeof field.reportValidity==='function'&&!field.reportValidity()){field.focus();return false;}
+  }
+ }
+ UI.orderWizardStep=target;
+ form.dataset.activeStep=String(target);
+ form.querySelectorAll('[data-order-step]').forEach(el=>{el.hidden=Number(el.dataset.orderStep)!==target;});
+ form.querySelectorAll('[data-action="wizard-step"]').forEach(el=>{
+  const step=Number(el.dataset.step);
+  el.classList.toggle('active',step===target);
+  el.disabled=step>target+1;
+  if(step===target)el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');
+ });
+ const prev=form.querySelector('[data-action="wizard-previous"]'),nextBtn=form.querySelector('[data-action="wizard-next"]');
+ if(prev)prev.hidden=target===0;
+ if(nextBtn)nextBtn.hidden=target===3;
+ const counter=form.querySelector('#awamer-wizard-counter'),bar=form.querySelector('#awamer-wizard-progress'),track=form.querySelector('[role="progressbar"]');
+ if(counter)counter.textContent='الخطوة '+(target+1)+' من 4';
+ if(bar)bar.style.width=((target+1)*25)+'%';
+ if(track)track.setAttribute('aria-valuenow',String(target+1));
+ return true;
+}
 function bindOrderForm(){const f=$('#order-form');if(f.dataset.orderId){f.elements.branchId.disabled=true;const o=orders().find(x=>x.id===f.dataset.orderId);if(o?.assignees.some(a=>a.done||a.acceptedAt))$$('#team-picker input',f).forEach(x=>x.disabled=true);}f.addEventListener('input',()=>{const total=readTeam(f).reduce((s,a)=>s+a.share,0);$('#team-total').textContent=fmt(total,0)+'%';$('#team-total').className='tag '+(Math.abs(total-100)<.01?'green':'orange');clearTimeout(draftTimer);draftTimer=setTimeout(()=>{if(!f.dataset.orderId){state.drafts.order=orderDraft(f);try{persist();const ind=$('#draft-indicator');if(ind)ind.innerHTML=ico('check','sm')+' تم حفظ المسودة';}catch(e){toast('لم تحفظ المسودة. مساحة التخزين غير كافية.',true);}}},350);});}
 const COST_TYPES=[["labor","أجور التنفيذ"],["machine","تشغيل الماكينة"],["finishing","التشطيب والتجميع"],["outsourcing","تصنيع خارجي"],["installation","التركيب"],["delivery","النقل والتوصيل"],["other","تكلفة مباشرة أخرى"]];
 function costSection(o){
@@ -393,6 +450,16 @@ case 'client-new':UI.clientForm=true;render();break;
 case 'client-close':UI.clientForm=false;render();break;
 case 'client-order':{requirePerm('manage_orders');const c=scoped(state.clients).find(c=>c.id===el.dataset.id);if(!c)throw new Error('العميل خارج نطاقك');state.drafts.order={clientId:c.id,branchId:c.branchId};persist();go('newOrder');break;}
 
+
+case 'wizard-next':showOrderWizardStep(UI.orderWizardStep+1,true);break;
+case 'wizard-previous':showOrderWizardStep(UI.orderWizardStep-1,false);break;
+case 'wizard-step':showOrderWizardStep(Number(el.dataset.step),true);break;
+case 'wizard-save-draft':{
+ const form=$('#order-form');if(!form||form.dataset.orderId)break;
+ state.drafts.order=orderDraft(form);persist();
+ toast(CONNECTED?'جار حفظ المسودة على الجهاز':'تم حفظ المسودة على الجهاز');
+ break;
+}
 case 'service-new':UI.serviceEditing=null;UI.serviceForm=true;render();break;
 case 'service-edit':UI.serviceEditing=el.dataset.id;UI.serviceForm=true;render();break;
 case 'service-cancel':UI.serviceForm=false;UI.serviceEditing=null;render();break;
