@@ -123,7 +123,7 @@ function guideSteps(){
  {id:'branches',label:'تجهيز الفروع',desc:'حدد فرع تنفيذ كل طلب ومن المسؤول عنه',icon:'branch',go:'branches',ok:state.branches.length>0},
  {id:'team',label:'إضافة فريق العمل',desc:'أنشئ حسابات الموظفين وحدد الأدوار والصلاحيات',icon:'users',go:'employees',ok:state.users.some(x=>x.active&&x.role==='employee')},
  {id:'stock',label:'تسجيل الخامات',desc:'سجل الألواح والرولات والمقاسات وتكلفة كل خامة',icon:'inventory',go:'inventory',ok:state.materials.length>0},
- {id:'services',label:'تجربة الحاسبات',desc:'راجع المقاس والهدر والتكلفة قبل إنشاء أمر',icon:'calculator',go:'calculators',ok:state.orders.length>0},
+ {id:'services',label:'إعداد سجل الخدمات',desc:'أضف خدمات مؤسستك وحدد وحدات البيع والأسعار قبل إنشاء الطلبات',icon:'grid',go:'catalog',ok:customServices().length>0||Object.keys(state.settings.servicePrices||{}).length>0},
  {id:'clients',label:'إضافة أول عميل',desc:'حفظ بيانات العميل وربط طلباته بها',icon:'users',go:'clients',ok:state.clients.length>0},
  {id:'orders',label:'إنشاء أمر عمل',desc:'حدد الخدمة والموعد والملفات والمقاسات',icon:'orders',go:'newOrder',ok:state.orders.length>0},
  {id:'docs',label:'المستندات والتسليم',desc:'اطبع أمر العمل وعرض السعر ومحضر الاستلام',icon:'print',go:'documents',ok:state.orders.some(o=>o.status==='delivered')}
@@ -256,13 +256,13 @@ function serviceEditor(){
  if(!perm('manage_settings')||!UI.serviceForm)return '';
  const service=customServices(null,true).find(x=>x.id===UI.serviceEditing);
  const categories=K.categories.map(c=>[c.id,c.name]);
- const units=[['قطعة','قطعة'],['متر مربع','متر مربع'],['متر طولي','متر طولي'],['لوح','لوح'],['رول','رول'],['ورقة','ورقة'],['علبة','علبة'],['حبة','حبة'],['كرتون','كرتون'],['كيلو','كيلو'],['جرام','جرام'],['ساعة','ساعة'],['خدمة','خدمة']];
+
  const calculators=[['general','تكلفة شاملة'],['sheet','قص الألواح'],['paper','الورق والداي كت'],['roll','الرول والأحبار'],['letters','الحروف والشعارات'],['led','الليدات والترانسات']];
  return '<section class="card awamer-service-editor"><div class="card-head"><h2>'+(service?'تعديل الخدمة':'إضافة خدمة إلى سجل الوكالة')+'</h2>'+
   btn('إلغاء','service-cancel','sm','','close')+'</div><form id="service-registry-form" data-id="'+esc(service?.id||'')+'"><div class="form-grid three">'+
   field('اسم الخدمة','name',service?.name||'','text','required maxlength="120" placeholder="مثال: لوحة كلادينج بإضاءة"')+
   selectField('قسم الخدمة','category',categories,service?.category||route().id&&cat(route().id)?.id||'projects','required')+
-  selectField('وحدة البيع','unit',units,service?.unit||'قطعة','required')+
+  field('وحدة البيع','unit',service?.unit||'قطعة','text','required maxlength="40" list="awamer-service-unit-options"')+ '<datalist id="awamer-service-unit-options">'+['قطعة','متر مربع','متر طولي','لوح','رول','ورقة','حبة','كرتون','كيلو','جرام','ساعة','خدمة'].map(value=>'<option value="'+value+'">').join('')+'</datalist>'+
   selectField('طريقة الاحتساب','calculator',calculators,service?.calculator||'general','required')+
   field('السعر المرجعي للوحدة','basePrice',service?.basePrice??0,'number','required min="0" step="0.01"')+
   '</div><p class="field-note">يمكن تعديل الخدمة أو أرشفتها دون حذف أوامر العمل السابقة. السعر المرجعي لا يحل محل حساب تكلفة الخامات.</p>'+
