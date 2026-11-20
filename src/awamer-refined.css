@@ -313,3 +313,59 @@ body.dark{--primary:#a6dad2;--primary-rgb:166,218,210;--secondary:#5bbcaf;--bg:#
 @media(prefers-reduced-motion:reduce){
  *,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
+
+/* AWAMER guided operations upgrade */
+.sidebar .awamer-nav-section{padding:5px 0 10px}
+.sidebar .awamer-nav-section+.awamer-nav-section{margin-top:9px;border-top:1px solid rgba(255,255,255,.11);padding-top:13px}
+.sidebar .awamer-nav-heading{font-size:11px;font-weight:700;letter-spacing:.01em;color:#9cbfc1;padding:7px 13px 10px}
+.sidebar-compact .sidebar .awamer-nav-heading{font-size:0;height:8px;padding:0}
+.mobile-nav{grid-template-columns:repeat(5,minmax(0,1fr))}
+.mobile-nav button{appearance:none;font:inherit;cursor:pointer;border:0;background:transparent;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:0;padding:10px 3px}
+.mobile-nav button .icon{width:22px;height:22px}
+.mobile-nav button span{font-size:11px}
+.mobile-nav a,.mobile-nav button{touch-action:manipulation}
+.awamer-service-editor{margin-bottom:20px;border:1px solid rgba(16,127,119,.22)}
+.awamer-service-editor .form-grid{margin-bottom:13px}
+.awamer-custom-service .row{align-items:flex-start}
+.awamer-custom-service .metric-big{font-size:23px}
+.awamer-custom-service .btn{flex:0 1 auto}
+.awamer-quick-client-wrap{grid-column:1/-1;display:grid;gap:9px}
+.awamer-quick-client-wrap>.btn{justify-self:start}
+.awamer-quick-client{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:14px}
+.awamer-quick-client label{font-size:12px;font-weight:700}
+.awamer-quick-client input{width:100%;min-width:0}
+.awamer-quick-client button{grid-column:1/-1;justify-self:start}
+.awamer-quick-client[hidden]{display:none!important}
+.awamer-order-wizard-nav{padding:18px 20px;border-radius:17px;border:1px solid var(--line);background:var(--surface);margin-bottom:17px}
+.awamer-wizard-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
+.awamer-wizard-head h2{font-size:18px;margin:0;color:var(--text)}
+.awamer-wizard-head span{font-size:12px;color:var(--muted);white-space:nowrap}
+.awamer-order-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.awamer-order-steps button{font:inherit;font-size:12px;min-height:48px;border:1px solid var(--line);border-radius:12px;padding:8px;background:var(--surface2);color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.awamer-order-steps button span{display:grid;place-items:center;border:1px solid var(--line);border-radius:50%;width:25px;height:25px;flex-shrink:0}
+.awamer-order-steps button.active{border-color:#187f80;background:#e5f3f0;color:#115a5b;font-weight:700}
+.awamer-order-steps button:disabled{opacity:.55;cursor:not-allowed}
+.awamer-wizard-track{height:5px;background:var(--surface2);border-radius:999px;overflow:hidden;margin-top:14px}
+.awamer-wizard-track span{display:block;width:25%;height:100%;border-radius:inherit;background:#15817b;transition:width .2s ease}
+#order-form .awamer-order-wizard-layout{display:block}
+#order-form .awamer-order-wizard-layout>.stack{display:contents}
+#order-form .awamer-order-wizard-layout>aside.stack{display:flex;flex-direction:column;margin-top:0}
+#order-form .awamer-order-wizard-layout [data-order-step][hidden]{display:none!important}
+#order-form .awamer-order-wizard-layout>section.card{margin-bottom:12px}
+.awamer-wizard-footer{display:flex;justify-content:flex-end;gap:10px;margin:15px 0 25px;flex-wrap:wrap}
+.awamer-wizard-footer [hidden]{display:none!important}
+.dark .awamer-order-steps button.active{background:#194f51;border-color:#39958a;color:#e5f3f0}
+@media(max-width:760px){
+ .sidebar .awamer-nav-heading{padding:8px 10px}
+ .mobile-nav{grid-template-columns:repeat(5,minmax(0,1fr))}
+ .mobile-nav a,.mobile-nav button{padding:8px 2px;gap:4px}
+ .mobile-nav a span,.mobile-nav button span{font-size:10px}
+ .awamer-order-wizard-nav{padding:13px 10px}
+ .awamer-wizard-head h2{font-size:15px}
+ .awamer-order-steps{gap:5px}
+ .awamer-order-steps button{font-size:10px;min-height:66px;flex-direction:column;padding:5px 2px;line-height:1.35}
+ .awamer-order-steps button span{width:22px;height:22px}
+ .awamer-quick-client{grid-template-columns:1fr}
+ .awamer-quick-client button{width:100%}
+ .awamer-service-editor .form-grid{grid-template-columns:1fr}
+}

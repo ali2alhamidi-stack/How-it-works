@@ -7,6 +7,8 @@ const {createStore}=require('./store.cjs');
 const D=require('./commands.cjs');
 const Proof=require('./proofs.cjs');
 const Commercial=require('./commercial.cjs');
+const {createDocuments}=require('./modules/documents/service.cjs');
+const PDF=require('./modules/documents/pdf.cjs');
 const {redactState,redactResults}=require('./redaction.cjs');
 const M=require('../src/model.js');
 function createApplication(options={}) {
@@ -14,6 +16,8 @@ function createApplication(options={}) {
  const publicDir=path.resolve(options.publicDir||path.join(__dirname,'../public'));
  const origin=new URL(options.origin||'http://127.0.0.1:4173').origin;
  const commercial=Commercial.createCommercial({store,origin,env:options.env||process.env,fetchImpl:options.fetchImpl,clock:options.clock});
+ const documents=createDocuments({store,origin,env:options.env||process.env,mediaRoot:options.mediaRoot||
+  process.env.AW_DOC_MEDIA_ROOT||(options.dbPath&&options.dbPath!==':memory:'?path.join(path.dirname(options.dbPath),'awamer-media'):path.join(require('node:os').tmpdir(),'awamer-test-media'))});
  const secureCookies=options.secureCookies!==false,sessionHours=options.sessionHours??12;
  if(typeof sessionHours!=='number'||!Number.isFinite(sessionHours)||sessionHours<=0||sessionHours>720)throw new Error('sessionHours must be between 0 and 720');
  if(options.bootstrapOwner){const address=S.email(options.bootstrapOwner.email);if(!db.prepare('SELECT id FROM accounts WHERE email=?').get(address)){if(db.prepare("SELECT id FROM accounts WHERE kind='platform'").get())throw new Error('Platform owner already exists; use the owner administration CLI');store.createPlatformOwner(options.bootstrapOwner);}}
@@ -33,7 +37,12 @@ function createApplication(options={}) {
  function scrubTenantForMember(snap,auth){if(auth.user?.role!=='owner'){delete snap.tenant.ownerEmail;delete snap.tenant.maxUsers;delete snap.tenant.maxBranches;delete snap.tenant.userCount;delete snap.tenant.orderCount;delete snap.tenant.branchCount;}return snap;}
  function authenticatedSnapshot(auth,state=auth.state,revision=auth.tenant.revision){return scrubTenantForMember(snapshot(auth,state,revision),auth);}
  function invalidateUserSessions(tenantId,userId,except){const ids=db.prepare('SELECT id FROM accounts WHERE tenant_id=? AND user_id=?').all(tenantId,userId);for(const a of ids){if(except)db.prepare('DELETE FROM sessions WHERE account_id=? AND token_hash<>?').run(a.id,except);else db.prepare('DELETE FROM sessions WHERE account_id=?').run(a.id);}}
- function processCommands(auth,data){tenantAuth(auth);S.safeId(data.requestId,'معرف الطلب');S.num(data.baseRevision,'مراجعة البيانات',0,Number.MAX_SAFE_INTEGER,true);const hash=S.digest(S.stable({baseRevision:data.baseRevision,actions:data.actions}));return store.transaction(()=>{const t=store.getTenant(auth.a.tenant_id);usableTenant(t);const state=JSON.parse(t.state_json),u=state.users.find(x=>x.id===auth.a.user_id);if(!u?.active)S.error(401,'UNAUTHENTICATED','الحساب غير متاح');const old=db.prepare('SELECT * FROM command_requests WHERE tenant_id=? AND account_id=? AND request_id=?').get(t.id,auth.a.id,data.requestId);if(old){if(old.body_hash!==hash)S.error(409,'REQUEST_ID_REUSED','معرف الطلب مستخدم لمحتوى مختلف');const saved=JSON.parse(old.response_json),view=authenticatedSnapshot({...auth,tenant:t,state,user:u},state,t.revision);return {...view,results:redactResults(saved.results,state,u.id,u,saved.actions||data.actions),appliedRevision:saved.revision,replayed:true};}if(!Array.isArray(data.actions)||data.actions.length<1||data.actions.length>100)S.error(400,'INVALID_COMMANDS','أرسل من 1 إلى 100 عملية في الطلب');if(t.revision!==data.baseRevision)S.error(409,'REVISION_CONFLICT','تغيرت البيانات على الخادم؛ راجع أحدث نسخة',{currentRevision:t.revision});const results=[];for(const action of data.actions)results.push(D.dispatch(state,u.id,action,t));D.validateState(state);const revision=t.revision+1;store.saveState(t.id,state,revision);for(const action of data.actions)if(action.type==='user.permissions')invalidateUserSessions(t.id,action.payload.id);const response={revision,results,actions:data.actions};db.prepare('INSERT INTO command_requests VALUES(?,?,?,?,?,?)').run(t.id,auth.a.id,data.requestId,hash,JSON.stringify(response),new Date().toISOString());return {...authenticatedSnapshot({...auth,tenant:{...t,revision},state,user:state.users.find(x=>x.id===u.id)},state,revision),results:redactResults(results,state,u.id,undefined,data.actions),appliedRevision:revision,replayed:false};});}
+ function processCommands(auth,data){tenantAuth(auth);S.safeId(data.requestId,'معرف الطلب');S.num(data.baseRevision,'مراجعة البيانات',0,Number.MAX_SAFE_INTEGER,true);const hash=S.digest(S.stable({baseRevision:data.baseRevision,actions:data.actions}));return store.transaction(()=>{const t=store.getTenant(auth.a.tenant_id);usableTenant(t);const state=JSON.parse(t.state_json),u=state.users.find(x=>x.id===auth.a.user_id);if(!u?.active)S.error(401,'UNAUTHENTICATED','الحساب غير متاح');const old=db.prepare('SELECT * FROM command_requests WHERE tenant_id=? AND account_id=? AND request_id=?').get(t.id,auth.a.id,data.requestId);if(old){if(old.body_hash!==hash)S.error(409,'REQUEST_ID_REUSED','معرف الطلب مستخدم لمحتوى مختلف');const saved=JSON.parse(old.response_json),view=authenticatedSnapshot({...auth,tenant:t,state,user:u},state,t.revision);return {...view,results:redactResults(saved.results,state,u.id,u,saved.actions||data.actions),appliedRevision:saved.revision,replayed:true};}if(!Array.isArray(data.actions)||data.actions.length<1||data.actions.length>100)S.error(400,'INVALID_COMMANDS','أرسل من 1 إلى 100 عملية في الطلب');if(t.revision!==data.baseRevision)S.error(409,'REVISION_CONFLICT','تغيرت البيانات على الخادم؛ راجع أحدث نسخة',{currentRevision:t.revision});const results=[];for(const action of data.actions){
+ if(action.type==='order.transition'&&action.payload?.status==='delivered')documents.deliveryGuard(t.id,{id:action.payload.id});
+ const result=D.dispatch(state,u.id,action,t);
+ if(action.type==='order.transition'&&result?.id)documents.stageChange(t.id,result);
+ results.push(result);
+}D.validateState(state);const revision=t.revision+1;store.saveState(t.id,state,revision);for(const action of data.actions)if(action.type==='user.permissions')invalidateUserSessions(t.id,action.payload.id);const response={revision,results,actions:data.actions};db.prepare('INSERT INTO command_requests VALUES(?,?,?,?,?,?)').run(t.id,auth.a.id,data.requestId,hash,JSON.stringify(response),new Date().toISOString());return {...authenticatedSnapshot({...auth,tenant:{...t,revision},state,user:state.users.find(x=>x.id===u.id)},state,revision),results:redactResults(results,state,u.id,undefined,data.actions),appliedRevision:revision,replayed:false};});}
  function accountUserData(auth,data,existing){const s=auth.state,actor=auth.a.user_id;const p=S.pick(data,['name','role','branchIds','jobTitle','targetMonthly','active']);const merged={...(existing||{}),...p};if(existing){D.ownBranches(s,actor,existing.branchIds);if(existing.role==='owner'&&auth.user.role!=='owner')S.error(403,'OWNER_PROTECTED','حساب المالك محمي');}D.ownBranches(s,actor,merged.branchIds);if(!['employee','manager','purchasing','owner'].includes(merged.role))S.error(400,'VALIDATION_ERROR','دور المستخدم غير صالح');if(merged.role==='owner'&&(!existing||existing.role!=='owner'))S.error(403,'OWNER_PROTECTED','لا يمكن ترقية حساب إلى مالك من هذه الواجهة');merged.name=S.str(merged.name,'اسم المستخدم',200);merged.jobTitle=S.str(merged.jobTitle??'','المسمى الوظيفي',200,true);merged.targetMonthly=S.num(merged.targetMonthly??20,'الهدف الشهري',0,100000);if(merged.active===undefined)merged.active=true;if(typeof merged.active!=='boolean')S.error(400,'VALIDATION_ERROR','حالة المستخدم غير صالحة');if(existing&&(existing.role!==merged.role||S.stable(existing.branchIds)!==S.stable(merged.branchIds))&&s.orders.some(o=>o.assignees.some(a=>a.userId===existing.id)))S.error(409,'USER_HAS_HISTORY','لا يمكن تغيير دور أو فرع موظف مرتبط بأوامر حفاظا على السجل');if(existing?.role==='owner'&&(merged.role!=='owner'||!merged.active)&&s.users.filter(u=>u.role==='owner'&&u.active&&u.id!==existing.id).length===0)S.error(409,'LAST_OWNER','لا يمكن تعطيل أو تغيير آخر مالك نشط');return {name:merged.name,role:merged.role,branchIds:merged.branchIds,jobTitle:merged.jobTitle,targetMonthly:merged.targetMonthly,active:merged.active};}
  function publicOrder(token){if(typeof token!=='string'||!/^[A-Za-z0-9_-]{40,160}$/.test(token))S.error(404,'NOT_FOUND','رابط التقييم غير متاح');const rows=db.prepare("SELECT DISTINCT tenants.* FROM tenants,json_each(tenants.state_json,'$.orders') AS orders WHERE json_extract(orders.value,'$.reviewToken')=?").all(token);for(const t of rows){if(t.status!=='active'||t.expires_at&&Date.parse(t.expires_at.length===10?t.expires_at+'T23:59:59.999Z':t.expires_at)<Date.now())continue;const state=JSON.parse(t.state_json),o=state.orders.find(o=>o.reviewToken===token&&o.status==='delivered');if(o)return {t,state,o};}S.error(404,'NOT_FOUND','رابط التقييم غير متاح');}
  function publicProofOrder(token){
@@ -47,7 +56,11 @@ function createApplication(options={}) {
    S.error(404,'NOT_FOUND','الرابط انتهى أو تم إصدار تصميم أحدث');
   }
   async function staticFile(req,res,url){if(!['GET','HEAD'].includes(req.method))S.error(404,'NOT_FOUND','الصفحة غير موجودة');let pathname;try{pathname=decodeURIComponent(url.pathname);}catch{S.error(400,'BAD_PATH','مسار غير صالح');}if(pathname.includes('\0')||pathname.includes('\\')||pathname.split('/').some(p=>p==='..'||p.startsWith('.')))S.error(404,'NOT_FOUND','الصفحة غير موجودة');const file=path.resolve(publicDir,'.'+(pathname==='/'?'/index.html':pathname));if(file!==publicDir&&!file.startsWith(publicDir+path.sep))S.error(404,'NOT_FOUND','الصفحة غير موجودة');let stat,real;try{stat=fs.statSync(file);real=fs.realpathSync(file);}catch{S.error(404,'NOT_FOUND','الصفحة غير موجودة');}let rootReal;try{rootReal=fs.realpathSync(publicDir);}catch{S.error(404,'NOT_FOUND','الصفحة غير موجودة');}if(!stat.isFile()||!real.startsWith(rootReal+path.sep))S.error(404,'NOT_FOUND','الصفحة غير موجودة');const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon','.woff2':'font/woff2','.ttf':'font/ttf'};const ext=path.extname(file).toLowerCase();if(!types[ext])S.error(404,'NOT_FOUND','الملف غير متاح');res.writeHead(200,{'Content-Type':types[ext],'Content-Length':stat.size,'Cache-Control':ext==='.html'||path.basename(file)==='sw.js'?'no-cache':'public, max-age=3600','Service-Worker-Allowed':'/'});if(req.method==='HEAD')res.end();else fs.createReadStream(file).on('error',()=>res.destroy()).pipe(res);}
- async function handler(req,res){res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'");if(secureCookies)res.setHeader('Strict-Transport-Security','max-age=31536000');try{const url=new URL(req.url,'http://server.local'),p=url.pathname,method=req.method;if(!p.startsWith('/api/'))return await staticFile(req,res,url);
+ async function handler(req,res){res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'");if(secureCookies)res.setHeader('Strict-Transport-Security','max-age=31536000');try{const url=new URL(req.url,'http://server.local'),p=url.pathname,method=req.method;if(!p.startsWith('/api/')){
+  if(/^\/d\/[A-Za-z0-9_-]{42,44}$/.test(p))return await staticFile(req,res,new URL('/document.html','http://server.local'));
+  if(/^\/track\/[A-Za-z0-9_-]{42,44}$/.test(p))return await staticFile(req,res,new URL('/tracking.html','http://server.local'));
+  return await staticFile(req,res,url);
+ }
  if(p==='/api/webhooks/whatsapp'&&method==='GET'){
   const challenge=commercial.verifyWhatsApp(url.searchParams);
   res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store'});
@@ -63,6 +76,44 @@ function createApplication(options={}) {
   return json(res,200,await commercial.verifyPaymentWebhook(paymentWebhook[1],paymentWebhook[2]));
  }
  const writes=!['GET','HEAD'].includes(method);if(writes)trusted(req);let ip=req.socket.remoteAddress||'unknown';if(options.trustProxy===true){const forwarded=req.headers['x-forwarded-for'];if(typeof forwarded==='string'&&forwarded.length<=1024){const candidate=forwarded.split(',').at(-1).trim();if(isIP(candidate))ip=candidate;}}rate('api:'+ip,600,60000);
+
+  const docRoot=p.match(/^\/api\/public\/documents\/([A-Za-z0-9_-]{42,44})$/);
+  if(docRoot&&method==='GET'){rate('pubdoc:'+ip,160,60000);return json(res,200,documents.publicDocument(docRoot[1]));}
+  const docAsset=p.match(/^\/api\/public\/documents\/([A-Za-z0-9_-]{42,44})\/assets\/([A-Za-z0-9_-]{1,160})$/);
+  if(docAsset&&method==='GET'){
+   rate('docasset:'+ip,180,60000);
+   const asset=documents.publicAsset(docAsset[1],docAsset[2]);
+   res.writeHead(200,{'Content-Type':asset.mime,'Content-Length':asset.bytes.length,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+   return res.end(asset.bytes);
+  }
+  const docOp=p.match(/^\/api\/public\/documents\/([A-Za-z0-9_-]{42,44})\/(preview|accept|payment-evidence|pdf)$/);
+  if(docOp){
+   const token=docOp[1],operation=docOp[2];
+   rate('docop:'+ip,40,60000);
+   if(operation==='preview'&&method==='POST')return json(res,200,documents.quotePreview(token,await body(req,32*1024)));
+   if(operation==='accept'&&method==='POST'){
+    rate('doc-sign:'+ip,12,3600000);
+    return json(res,201,documents.accept(token,await body(req,600*1024),{ip,userAgent:req.headers['user-agent']||''}));
+   }
+   if(operation==='payment-evidence'&&method==='POST'){
+    rate('doc-evidence:'+ip,8,3600000);
+    return json(res,201,documents.uploadEvidence(token,await body(req,4*1024*1024)));
+   }
+   if(operation==='pdf'&&method==='GET'){
+    rate('doc-pdf:'+ip,8,3600000);
+    const view=documents.publicDocument(token);
+    const pdf=await PDF.makePdf(view,{url:origin+'/d/'+token,getAsset:id=>documents.publicAsset(token,id),env:options.env||process.env});
+    res.writeHead(200,{'Content-Type':'application/pdf','Content-Disposition':'inline; filename="awamer-document.pdf"','Cache-Control':'no-store','Content-Length':pdf.length});
+    return res.end(pdf);
+   }
+  }
+  const tracking=p.match(/^\/api\/public\/tracking\/([A-Za-z0-9_-]{42,44})$/);
+  if(tracking&&method==='GET'){
+   rate('tracking:'+ip,180,60000);
+   const view=documents.tracker(tracking[1]),etag='"'+S.digest(JSON.stringify(view))+'"';
+   if(req.headers['if-none-match']===etag){res.writeHead(304,{'Cache-Control':'no-store',ETag:etag});return res.end();}
+   return json(res,200,view,{ETag:etag});
+  }
   if(p==='/api/login'&&method==='POST'){const data=await body(req,16*1024),address=typeof data.email==='string'&&data.email.length<=254?data.email.trim().toLowerCase():'';rate('login:'+ip+':'+address,8,15*60000);rate('login-ip:'+ip,80,15*60000);const a=db.prepare('SELECT * FROM accounts WHERE email=?').get(address);const valid=S.passwordMatches(data.password,a?.password_hash||dummyHash);if(!a||!a.active||!valid)S.error(401,'INVALID_CREDENTIALS','البريد الإلكتروني أو كلمة المرور غير صحيحة');let state;if(a.kind==='tenant'){const t=store.getTenant(a.tenant_id);usableTenant(t);state=JSON.parse(t.state_json);if(!state.users.find(u=>u.id===a.user_id&&u.active))S.error(401,'INVALID_CREDENTIALS','البريد الإلكتروني أو كلمة المرور غير صحيحة');}const token=S.random(),csrf=S.random(),time=Date.now();db.prepare('DELETE FROM sessions WHERE expires_at<=?').run(time);db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?)').run(S.digest(token),a.id,csrf,time+sessionHours*3600000,time);return json(res,200,{account:accountView(a,state),csrfToken:csrf},{'Set-Cookie':cookie(token)});}
   const proof=p.match(/^\/api\/public\/proofs\/([^/]+)$/);
    if(proof){
@@ -84,6 +135,33 @@ function createApplication(options={}) {
    }
    const pub=p.match(/^\/api\/public\/reviews\/([^/]+)$/);if(pub){const token=pub[1];if(method==='GET'){const {state,o}=publicOrder(token);return json(res,200,{brand:{name:state.brand.name,activity:state.brand.activity,primary:state.brand.primary,secondary:state.brand.secondary,logo:state.brand.logo},order:{number:o.number,title:o.title,deliveredAt:o.deliveredAt},reviewed:state.reviews.some(r=>r.token===token)});}if(method==='POST'){rate('review:'+ip,20,3600000);const data=await body(req);const result=store.transaction(()=>{const {t,state,o}=publicOrder(token);if(state.reviews.some(r=>r.token===token))S.error(409,'REVIEW_EXISTS','تم إرسال التقييم مسبقا');const r=M.submitReview(state,{token,rating:data.rating,name:data.name,comment:data.comment});D.validateState(state);store.saveState(t.id,state,t.revision+1);return {reviewed:true,id:r.id};});return json(res,201,result);}S.error(404,'NOT_FOUND','المسار غير موجود');}
   const auth=authenticate(req,writes);if(writes)req[authenticatedBody]=()=>Object.assign(auth,authenticate(req,true));
+
+  if(p==='/api/v3/documents'&&method==='GET')return json(res,200,{documents:documents.list(auth)});
+  if(p==='/api/v3/documents/quote'&&method==='POST')
+   return json(res,201,documents.createQuote(auth,await body(req,12*1024*1024)));
+  const docRoute=p.match(/^\/api\/v3\/documents\/([A-Za-z0-9_-]{1,160})(?:\/(publish|share|pdf))?$/);
+  if(docRoute){
+   const docId=docRoute[1],op=docRoute[2];
+   if(op==='publish'&&method==='POST'){await body(req,4096);return json(res,201,documents.publish(auth,docId));}
+   if(op==='share'&&method==='POST'){await body(req,4096);return json(res,201,documents.renewDocumentLink(auth,docId));}
+   if(op==='pdf'&&method==='GET'){
+    const view=documents.staffDocument(auth,docId);
+    const pdf=await PDF.makePdf(view,{url:origin,getAsset:id=>documents.assets.read(auth.a.tenant_id,id),env:options.env||process.env});
+    res.writeHead(200,{'Content-Type':'application/pdf','Content-Disposition':'inline; filename="awamer-document.pdf"','Cache-Control':'no-store','Content-Length':pdf.length});
+    return res.end(pdf);
+   }
+   if(!op&&method==='GET')return json(res,200,documents.staffDocument(auth,docId));
+  }
+  const deliveryRoute=p.match(/^\/api\/v3\/orders\/([A-Za-z0-9_-]{1,160})\/delivery(?:\/(start|evidence|complete))?$/);
+  if(deliveryRoute){
+   const oid=deliveryRoute[1],op=deliveryRoute[2];
+   if(!op&&method==='GET')return json(res,200,documents.readDelivery(auth,oid));
+   if(op==='start'&&method==='POST')return json(res,201,documents.startDelivery(auth,oid,await body(req,4096)));
+   if(op==='evidence'&&method==='POST')return json(res,200,documents.saveDeliveryEvidence(auth,oid,await body(req,10*1024*1024)));
+   if(op==='complete'&&method==='POST')return json(res,201,documents.completeDelivery(auth,oid,await body(req,800*1024),{ip}));
+  }
+  const trackLink=p.match(/^\/api\/v3\/orders\/([A-Za-z0-9_-]{1,160})\/tracking-link$/);
+  if(trackLink&&method==='POST'){await body(req,4096);return json(res,201,documents.renewTrackingLink(auth,trackLink[1]));}
    const proofRequest=p.match(/^\/api\/orders\/([^/]+)\/proof$/);
    if(proofRequest&&method==='POST'){
     tenantAuth(auth);const orderId=S.safeId(proofRequest[1]),data=await body(req,4*1024);
@@ -121,6 +199,6 @@ function createApplication(options={}) {
   const userRoute=p.match(/^\/api\/users\/([^/]+)(\/password)?$/);if(userRoute){tenantAuth(auth);const userId=S.safeId(userRoute[1]);if(userRoute[2]&&method==='POST'){const data=await body(req),hash=S.passwordHash(data.password);store.transaction(()=>{const t=store.getTenant(auth.a.tenant_id);usableTenant(t);const state=JSON.parse(t.state_json),u=D.entity(state,'users',userId);if(u.role==='owner'&&auth.user.role!=='owner')S.error(403,'OWNER_PROTECTED','حساب المالك محمي');D.ownBranches(state,auth.a.user_id,u.branchIds);const a=db.prepare('SELECT id FROM accounts WHERE tenant_id=? AND user_id=?').get(t.id,u.id);if(!a)S.error(404,'NOT_FOUND','حساب المستخدم غير موجود');db.prepare('UPDATE accounts SET password_hash=? WHERE id=?').run(hash,a.id);invalidateUserSessions(t.id,u.id);D.log(state,auth.a.user_id,u.branchIds[0],'reset_user_password',u.id,'إعادة تعيين كلمة مرور المستخدم');store.saveState(t.id,state,t.revision+1);});return json(res,200,{ok:true});}if(!userRoute[2]&&method==='PATCH'){const data=await body(req);const result=store.transaction(()=>{const t=store.getTenant(auth.a.tenant_id);usableTenant(t);const state=JSON.parse(t.state_json),u=D.entity(state,'users',userId);const d=accountUserData({...auth,state},data,u);Object.assign(u,d);db.prepare('UPDATE accounts SET name=?,active=? WHERE tenant_id=? AND user_id=?').run(u.name,u.active?1:0,t.id,u.id);invalidateUserSessions(t.id,u.id,auth.a.user_id===u.id?auth.sess.token_hash:undefined);D.log(state,auth.a.user_id,u.branchIds[0],'update_user',u.id,'تحديث حساب المستخدم');D.validateState(state);store.saveState(t.id,state,t.revision+1);return authenticatedSnapshot({...auth,tenant:t,state,user:state.users.find(x=>x.id===auth.a.user_id)},state,t.revision+1);});return json(res,200,result);}}
   S.error(404,'NOT_FOUND','المسار غير موجود');
  }catch(e){if(res.headersSent){res.destroy();return;}let status=e.status||400,code=e.code||'VALIDATION_ERROR',message=e.message||'تعذر تنفيذ الطلب';if(!e.status){if(/صلاحية|في فرعك|لأوامرك|يمكن.*فقط|خارج الفرع/.test(message)){status=403;code='FORBIDDEN';}else if(/غير موجود/.test(message)){status=404;code='NOT_FOUND';}else if(e.code?.startsWith('SQLITE')||/sqlite|constraint|syntax error/i.test(message)){status=500;code='INTERNAL_ERROR';message='تعذر إكمال العملية على الخادم';}}const headers=e.status===429?{'Retry-After':String(e.details?.retryAfter||60)}:{};json(res,status,{error:{code,message,...(e.details?{details:e.details}:{})}},headers);}}
- return {handler,close:()=>store.close(),store,commercial};
+ return {handler,close:()=>store.close(),store,commercial,documents};
 }
 module.exports={createApplication};

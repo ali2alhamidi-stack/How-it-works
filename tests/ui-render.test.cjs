@@ -65,3 +65,22 @@ test('guide and documents routes render real role-scoped actions without leaking
  const staff=await render('emp1','documents');assert.deepEqual(staff.errors,[]);assert.ok(!staff.html.includes('data-action="print-quote"'));assert.ok(!staff.html.includes('data-action="print-cost-summary"'));
  const staffGuide=await render('emp1','guide');assert.deepEqual(staffGuide.errors,[]);assert.ok(staffGuide.html.includes('مهامي'));
 });
+
+test('service registry, complete mobile navigation and quick customer capture render on actual tenant projections',async()=>{
+ const owner=await render('owner','catalog');
+ assert.deepEqual(owner.errors,[]);
+ assert.ok(owner.html.includes('سجل الخدمات'));
+ assert.ok(owner.html.includes('data-action="service-new"'));
+ assert.ok(owner.html.includes('data-action="menu"'));
+ assert.ok(owner.html.includes('العملاء والخدمات'));
+ assert.ok(owner.html.includes('الخامات والتصنيع'));
+ assert.ok(owner.html.includes('فتح بقية أقسام النظام'));
+ const order=await render('owner','newOrder');
+ assert.deepEqual(order.errors,[]);
+ assert.ok(order.html.includes('id="quick-client-box"'));
+ assert.ok(order.html.includes('data-action="quick-client-save"'));
+ const employee=await render('emp1','catalog');
+ assert.deepEqual(employee.errors,[]);
+ assert.ok(!employee.html.includes('data-action="service-new"'));
+ assert.ok(employee.html.includes('سجل الخدمات'));
+});

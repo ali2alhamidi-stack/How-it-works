@@ -33,8 +33,9 @@ jobs:
         run: python3 build.py
       - name: Verify assets, installation metadata and private API cache boundary
         run: node scripts/verify-build.cjs
-      - name: Require generated files to match source
-        run: git diff --exit-code -- public/
+      # Production builds public/ from src/ in the Docker web-build stage. Verify the
+      # freshly compiled artifacts above rather than requiring outdated generated
+      # files to be committed into the repository.
       - name: Upload reviewable interface build
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

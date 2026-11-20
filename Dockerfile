@@ -13,15 +13,20 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000 \
     DB_PATH=/data/work-orders.sqlite \
+    AW_DOC_MEDIA_ROOT=/data/awamer-media \
+    AWAMER_CHROMIUM_PATH=/usr/bin/chromium \
     PUBLIC_DIR=/app/public
 WORKDIR /app
 RUN node -e "const [major,minor]=process.versions.node.split('.').map(Number); if(major!==24||minor<22)throw new Error('Node 24.22+ required'); require('node:sqlite')" \
-    && apt-get update && apt-get install -y --no-install-recommends gosu \
+    && apt-get update && apt-get install -y --no-install-recommends gosu chromium \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /data && chown node:node /data && chmod 700 /data
 COPY --chown=node:node package.json ./
 COPY --chown=node:node server ./server
-COPY --chown=node:node src/model.js src/catalog.js src/inventory-engine.js ./src/
+COPY --chown=node:node src/model.js src/catalog.js src/inventory-engine.js src/qr.js ./src/
+COPY --chown=node:node src/documents ./src/documents
+COPY --chown=node:node assets/Arabic-Regular.ttf assets/Arabic-Bold.ttf ./assets/
+COPY --chown=node:node services/pdf-worker ./services/pdf-worker
 COPY --chown=node:node scripts/create-owner.cjs scripts/backup.cjs ./scripts/
 COPY --from=web-build --chown=node:node /build/public ./public
 COPY --chmod=755 deploy/docker-entrypoint.sh /usr/local/bin/awamer-entrypoint
