@@ -1,0 +1,49 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#153c49">
+<title>استوديو المستندات | أوامر</title><link rel="stylesheet" href="/document.css">
+<script defer src="/document-manager.js"></script>
+</head><body>
+<main class="doc-frame" style="max-width:1250px">
+<header class="doc-header"><div class="doc-brand"><img class="doc-brand-mark" src="/assets/awamer-logo.webp" alt="شعار أوامر"><div>
+<div class="doc-brand-name">استوديو المستندات</div><span class="doc-brand-caption">AWAMER · DOCUMENT STUDIO</span></div></div>
+<a class="doc-btn" href="/#/documents">العودة للنظام</a></header>
+<h1 class="doc-main-title">عروض أسعار تفاعلية</h1><p class="doc-summary">أصدر عرضا متعدد البنود، حدد الباقات والمقاسات ثم شاركه مع العميل للتوقيع. لا تصدر من هنا فواتير ضريبية أو سندات قبض.</p>
+<div id="notice" role="status" aria-live="polite"></div>
+<section class="doc-meta"><h2 class="doc-section-title">إعداد عرض جديد</h2>
+<form id="quote-form"><div class="doc-info-grid">
+ <label>الفرع<select name="branchId" id="branch" required></select></label>
+ <label>العميل<select name="clientId" id="client" required></select></label>
+ <label>الأولوية<select name="priority"><option value="normal">عادي</option><option value="high">مرتفع</option><option value="urgent">عاجل</option></select></label>
+ <label>عنوان العرض<input name="title" required maxlength="200" placeholder="مثال: لوحة واجهة المحل"></label>
+ <label>موعد التسليم<input name="dueAt" type="datetime-local" required></label>
+ <label>انتهاء صلاحية العرض<input name="expiresAt" type="datetime-local" required></label>
+ <label>هاتف واتساب للمنشأة<input name="businessPhone" type="tel" dir="ltr" maxlength="30" placeholder="+966..."></label>
+ </div>
+ <label>وصف وملاحظات العرض<input name="description" maxlength="3000" placeholder="تعليمات التنفيذ واختيار الخامات"></label>
+ <h2 class="doc-section-title">الباقات السعرية (اختيارية)</h2>
+ <div class="doc-info-grid">
+  <label>معامل الاقتصادي من 100% <input name="economicBp" type="number" min="10" max="300" step="1" placeholder="اتركه فارغا لإخفاء الباقة"></label>
+  <label>الأساسي <input value="100%" disabled></label>
+  <label>معامل الفاخر من 100% <input name="premiumBp" type="number" min="10" max="300" step="1" placeholder="اختياري"></label>
+ </div>
+ <h2 class="doc-section-title">بنود العرض</h2><div id="line-list" class="doc-lines"></div>
+ <div class="doc-modal-buttons"><button class="doc-btn" id="line-add" type="button">إضافة بند آخر</button>
+ <button class="doc-cta" id="quote-create" type="submit">حفظ مسودة عرض السعر</button></div>
+ </form></section>
+<section class="doc-meta" style="margin-top:23px"><h2 class="doc-section-title">المستندات الصادرة</h2>
+<div id="docs-list" class="doc-lines">جار قراءة المستندات...</div></section>
+</main>
+<style>
+#quote-form label{display:block;font-size:12px;font-weight:700;color:#274d56}
+#quote-form input,#quote-form select{display:block;width:100%;padding:10px;border:1px solid #d8e5e4;border-radius:10px;margin-top:6px;min-height:43px;background:#fff;color:#1b3e4a}
+#quote-form .doc-line{display:block}
+#quote-form .line-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:13px}
+#quote-form label.check{display:flex;align-items:center;gap:7px;margin-top:16px}
+#quote-form label.check input{width:auto;margin:0}
+#notice:not(:empty){background:#eaf6f3;padding:13px;margin:12px 0;border-radius:12px;color:#145c5c;word-break:break-word}
+#docs-list .doc-line{align-items:center;justify-content:space-between}
+@media(max-width:850px){#quote-form .line-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:500px){#quote-form .line-grid{grid-template-columns:1fr};#quote-form .doc-info-grid{grid-template-columns:1fr}}
+</style>
+</body></html>
